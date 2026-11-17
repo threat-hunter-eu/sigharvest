@@ -50,6 +50,16 @@ jobs:
       content_id: ${{ steps.decide.outputs.content_id }}
       previous_tag: ${{ steps.previous.outputs.tag }}
     steps:
+      # The full corpus peaks at about 10 GB in the workspace (database, retained snapshots, corpus/ and the clones in
+      # flight; clones are dropped once ingested) plus the cache archive and release staging, more than the ~14 GB a
+      # fresh runner has free. Toolchains this job never uses take tens of GB more.
+      - name: Free runner disk (preinstalled toolchains this job does not use)
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force > /dev/null || true
+          df -h /
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -70,9 +80,11 @@ jobs:
           # Reproducible files: every file in a release carries the run date at 00:00 UTC.
           echo "epoch=$(date -u -d "$d" +%s)" >> "$GITHUB_OUTPUT"
 
-      # Workspace layout: $SIGHARVEST_HOME/sources.yaml, data/sigharvest.db, data/cache/git/ (bare clones).
-      # Key per day; restore-keys fall back to the newest earlier snapshot (incremental git fetch).
-      - name: Restore workspace (git clones and DB under data)
+      # Workspace layout: $SIGHARVEST_HOME/sources.yaml, data/sigharvest.db, data/cache/source-snapshots/,
+      # data/cache/git/ (bare clones). The git clones are not cached (refetched: `--remote-check` skips unchanged
+      # sources without cloning, a changed one is cloned shallow again), which keeps the entry under the 10 GB
+      # Actions cache limit. Key per day; restore-keys fall back to the newest earlier snapshot.
+      - name: Restore workspace (DB, snapshots and state under data; no git clones)
         id: cache
         if: ${{ !inputs.cold_start }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -80,22 +92,31 @@ jobs:
           path: |
             .ws/data
             !.ws/data/logs
-          key: sigharvest-ws-v1-${{ runner.os }}-${{ steps.date.outputs.date }}
+            !.ws/data/cache/git
+          key: sigharvest-ws-v2-${{ runner.os }}-${{ steps.date.outputs.date }}
           restore-keys: |
-            sigharvest-ws-v1-${{ runner.os }}-
+            sigharvest-ws-v2-${{ runner.os }}-
 
       # --time-budget: no fetch or conversion starts after 150 minutes; validation, index, gates and the report
       # still run, and the run commits what it did (sources never or least recently synced go first next time).
       # --convert-scope canonical: only the copy of each logic that the index and the release files read.
       # The step timeout is a last resort below the job's, so a run that is still too slow checkpoints and caches
       # its progress below. `rc` stays empty when the step is killed (timeout, cancellation). `partial=true`: the
-      # budget left sources unsynced, so the corpus is not complete yet: no release tonight, progress is cached.
+      # budget (time, or disk: a fetch the free space cannot admit is deferred too) left sources unsynced, so the
+      # corpus is not complete yet: no release tonight, progress is cached.
+      # Disk admission (docs/automation.md#disk-space): each fetch is admitted against the space free when it starts;
+      # the reserve keeps room for validation, index, release staging and the cache archive. GIT_CACHE=drop: a clone
+      # is deleted once its source is ingested (it is not cached anyway).
       - name: Update (fetch, ingest, validate, convert, index)
         id: update
         timeout-minutes: 270
+        env:
+          SIGHARVEST_GIT_CACHE: drop
+          SIGHARVEST_DISK_RESERVE_BYTES: ${{ vars.SIGHARVEST_DISK_RESERVE_BYTES || '4294967296' }}
         run: |
           set +e
-          uv run sigharvest update \
+          uv run --no-sync sigharvest update \
+            --remote-check \
             --convert \
             --convert-scope canonical \
             --time-budget 150 \
@@ -112,6 +133,8 @@ jobs:
           if [ "$rc" = 0 ] && [ "${deferred:-0}" != 0 ]; then partial=true; fi
           echo "partial=$partial" >> "$GITHUB_OUTPUT"
           echo "sources left for the next run: ${deferred:-0} (partial=$partial)"
+          df -h /
+          du -sh "$SIGHARVEST_HOME"/data/* "$SIGHARVEST_HOME"/data/cache/* "$SIGHARVEST_HOME"/corpus 2>/dev/null || true
           exit "$rc"
 
       # Read-only, from the rules repository (public: GITHUB_TOKEN can read it; a private or missing one fails here).
@@ -141,7 +164,7 @@ jobs:
           set -euo pipefail
           prev=()
           [ -f "$PREV_DIR/index.json.gz" ] && prev=(--previous "$PREV_DIR")
-          uv run sigharvest release build "$RELEASE_DIR" \
+          uv run --no-sync sigharvest release build "$RELEASE_DIR" \
             --licence-class permissive --licence-class copyleft \
             --build-epoch "$BUILD_EPOCH" "${prev[@]}"
           ls -la "$RELEASE_DIR"
@@ -196,11 +219,12 @@ jobs:
           path: |
             .ws/data
             !.ws/data/logs
-          key: sigharvest-ws-v1-${{ runner.os }}-${{ steps.date.outputs.date }}
+            !.ws/data/cache/git
+          key: sigharvest-ws-v2-${{ runner.os }}-${{ steps.date.outputs.date }}
 
       # An update that was killed (step timeout, cancellation) or stopped on an error keeps its progress (clones,
       # ingested documents, committed conversion batches) under a run-specific key. Restore takes the newest
-      # `sigharvest-ws-v1-<os>-` entry, so the next night resumes from it, and the next successful run's snapshot
+      # `sigharvest-ws-v2-<os>-` entry, so the next night resumes from it, and the next successful run's snapshot
       # supersedes it. A failed gate (exit 1) is not saved: its last good snapshot stays the newest.
       - name: Save partial progress
         if: >-
@@ -211,7 +235,8 @@ jobs:
           path: |
             .ws/data
             !.ws/data/logs
-          key: sigharvest-ws-v1-${{ runner.os }}-${{ steps.date.outputs.date }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
+            !.ws/data/cache/git
+          key: sigharvest-ws-v2-${{ runner.os }}-${{ steps.date.outputs.date }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
 
       - if: steps.update.outputs.partial != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

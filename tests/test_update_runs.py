@@ -423,6 +423,64 @@ def test_quarantine_gate_scales_with_corpus_growth() -> None:
     assert _gates({"quarantine": 160, "documents": 5_000}, prev)["quarantine"] == "fail"  # never scaled down
 
 
+def test_sync_admission_charges_running_fetches_not_every_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The first nightly (1,201 sources) was refused upfront: every source's worst case was charged at once."""
+    from sigharvest import space
+
+    ws = Workspace(tmp_path)
+    sources = [SourceConfig(name=f"s{i}", type="git", url=f"https://example.invalid/s{i}.git") for i in range(1200)]
+    monkeypatch.setattr(space, "capacity", lambda path: space.Capacity(1, 14 * 1024**3, None))
+    space.before_sync(ws, sources, workers=4)  # 1,200 x 160 MiB would be refused
+    monkeypatch.setenv("SIGHARVEST_DISK_RESERVE_BYTES", str(13 * 1024**3))
+    with pytest.raises(space.SpaceError) as refused:
+        space.before_sync(ws, sources, workers=4)
+    assert str(refused.value).count("corpus") == 1  # labels are listed once
+
+
+def test_fetch_budget_counts_running_fetches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from sigharvest import space
+
+    ws = Workspace(tmp_path)
+    a, b = (SourceConfig(name=n, type="git", url=f"https://example.invalid/{n}.git") for n in "ab")
+    monkeypatch.setattr(space, "capacity", lambda path: space.Capacity(1, 1024**3, None))
+    monkeypatch.setenv("SIGHARVEST_DISK_SYNC_SOURCE_BYTES", str(100 * 1024**2))  # 500 MiB per fetch
+    budget = space.FetchBudget(ws)
+    budget.acquire(a)
+    with pytest.raises(space.SpaceError):
+        budget.acquire(b)  # 1 GiB < 256 MiB reserve + 2 x 500 MiB
+    budget.release("a")
+    budget.acquire(b)
+
+
+@pytest.mark.slow
+def test_disk_refusal_defers_sources_and_drops_git_clones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from sigharvest import space
+
+    repo, ws = make_workspace(tmp_path)
+    real = space.FetchBudget.acquire
+
+    def refuse_copy(self: space.FetchBudget, source: SourceConfig) -> None:
+        if source.name == "copy":
+            raise space.SpaceError("disk admission refused (corpus): test")
+        real(self, source)
+
+    copy = tmp_path / "copy"
+    git(tmp_path, "clone", "-q", str(repo), str(copy))
+    save_sources(ws, [*load_sources(ws), SourceConfig(name="copy", type="git", url=str(copy.resolve()), paths=["rules/*"], priority=20)])
+    monkeypatch.setattr(space.FetchBudget, "acquire", refuse_copy)
+    monkeypatch.setenv("SIGHARVEST_GIT_CACHE", "drop")
+    code, out = update(ws)
+    assert code == 0, out
+    run = latest(ws)
+    assert run.counts["sources_deferred"] == 1 and run.counts["sources_failed"] == 0
+    assert "1 sources left for the next run" in out
+    assert not any(ws.cache.glob("git/*"))  # ingested clone dropped
+    monkeypatch.setattr(space.FetchBudget, "acquire", real)
+    code, out = update(ws)
+    assert code == 0, out
+    assert latest(ws).counts.get("sources_deferred", 0) == 0 and "left for the next run" not in out
+
+
 @pytest.mark.slow
 def test_time_budget_defers_sources_to_the_next_update(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from sigharvest.cli import pipeline
@@ -440,7 +498,7 @@ def test_time_budget_defers_sources_to_the_next_update(tmp_path: Path, monkeypat
     assert run.counts["sources_deferred"] == 2 and run.counts["sources_failed"] == 0 and run.counts["unique_logic"] == 0
     assert "2 sources left for the next run" in out
     _, data = report(ws, run)
-    assert any("time budget reached: 2 sources" in n for n in data["notes"])
+    assert any("time budget or disk space reached: 2 sources" in n for n in data["notes"])
     code, out = update(ws, "--time-budget", "0")  # 0 = no budget: everything is synced
     assert code == 0, out
     run = latest(ws)

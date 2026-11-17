@@ -6,6 +6,8 @@ SQLite has a single writer. A failing source is logged in sync_log and never sto
 from __future__ import annotations
 
 import logging
+import os
+import shutil
 import sys
 import time
 from collections.abc import Callable, Iterator
@@ -212,7 +214,10 @@ def sync_all(
 
     deadline (a time.monotonic() value): a source not fetched, or fetched but not ingested, by then is skipped and its
     name appended to `deferred` (no outcome, no sync log: the source keeps its last ingested commit). With a deadline, sources never
-    synced go first, then the least recently synced, so a run cut short by its time budget is continued by the next."""
+    synced go first, then the least recently synced, so a run cut short by its time budget is continued by the next.
+    Each fetch is admitted on disk when it starts (space.FetchBudget); with a `deferred` list a refused fetch is deferred
+    like one past the deadline, otherwise the source fails with the SpaceError. SIGHARVEST_GIT_CACHE=drop deletes a git
+    source's bare clone once it is ingested (the next fetch clones again; --remote-check skips unchanged sources)."""
     from sigharvest.job_control import SyncProgress, source_progress
     from sigharvest.lock import mutation_lease
 
@@ -234,7 +239,10 @@ def sync_all(
                     parts.append(f"unknown source {name!r}" + (f" (did you mean {', '.join(close)}?)" if close else ""))
                 parts += [f"source {name!r} is disabled in its sources file" for name in disabled]
                 raise SigharvestError("; ".join(parts) + ". List sources with `sigharvest sources list`.")
-        space.before_sync(ws, configs)
+        space.before_sync(ws, configs, workers)
+        budget = space.FetchBudget(ws)
+        drop_git = os.environ.get("SIGHARVEST_GIT_CACHE", "keep") == "drop"
+        no_space: list[str] = []
         Session_ = open_db(ws)
         outcomes: list[SourceSyncOutcome] = []
         with Session_() as s:
@@ -261,8 +269,18 @@ def sync_all(
                 if deadline is not None and started >= deadline:
                     raise _Deferred(cfg.name)
                 try:
+                    budget.acquire(cfg)
+                except space.SpaceError as exc:
+                    fetch_seconds[cfg.name] = 0.0
+                    if deferred is None:
+                        raise
+                    log.warning("%s: deferred, %s", cfg.name, exc)
+                    no_space.append(cfg.name)
+                    raise _Deferred(cfg.name) from exc
+                try:
                     return rescan_snapshot(ws, cfg, last_commit) if rescan else fetch_source(ws, cfg, last_commit, prev, remote_check)
                 finally:
+                    budget.release(cfg.name)
                     fetch_seconds[cfg.name] = time.monotonic() - started
 
             if deadline is not None:
@@ -330,6 +348,9 @@ def sync_all(
                         source_progress(SyncProgress(n - 1, len(configs), cfg.name, status="ingesting"))
                         msg = ingest_result(s, source, entry, cfg, result, progress)
                         _finish(s, entry, None)
+                        if drop_git and cfg.type == "git":
+                            # The database and the retained snapshot hold what was ingested; the clone is refetched.
+                            shutil.rmtree(ws.git_repo(cfg.name), ignore_errors=True)
                     except Exception as exc:
                         if space.is_full(exc):
                             s.rollback()
@@ -360,4 +381,8 @@ def sync_all(
                     )
                     if progress:
                         progress(detail.text)
+        if no_space and progress:
+            progress(
+                f"disk admission: {len(no_space)} sources deferred to the next run (not enough free space; free space or adjust SIGHARVEST_DISK_* estimates)"
+            )
         return outcomes

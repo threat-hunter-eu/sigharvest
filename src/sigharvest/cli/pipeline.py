@@ -246,7 +246,7 @@ def _sync_sources(
     if unchanged:
         console.print(f"{unchanged} sources unchanged")
     if deferred:
-        console.print(f"{len(deferred)} sources left for the next run (time budget)")
+        console.print(f"{len(deferred)} sources left for the next run (time budget or disk space)")
     return outcomes
 
 
@@ -638,8 +638,8 @@ def _update(
                 outcomes = _sync_sources(sources or [], workers or DEFAULT_WORKERS, remote_check, deadline=deadline, deferred=deferred)
             if deferred:
                 note(
-                    f"time budget reached: {len(deferred)} sources not synced in this run (they keep their last ingested "
-                    "commit); the next update syncs them first"
+                    f"time budget or disk space reached: {len(deferred)} sources not synced in this run (they keep their last "
+                    "ingested commit); the next update syncs them first"
                 )
             with Session_() as s:
                 after = runs.snapshot(s)
@@ -708,7 +708,7 @@ def _update(
                 "changed": len(ch.changed),
                 "removed": len(ch.removed),
             }
-            if deadline is not None:
+            if deadline is not None or deferred:
                 counts |= {"sources_deferred": len(deferred), "conversions_deferred": conversions_deferred}
             prev = runs.previous_passed(s, run_id)
             gates = runs.evaluate(counts, prev.counts if prev else None, th)

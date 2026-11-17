@@ -106,23 +106,29 @@ minutes): `scripts/ci-full-local.sh` (`--quick` runs the push set only).
 ## nightly.yml
 
 1. `build` (read-only, 300 min; the `update` step itself 270 min as a last resort)
+   - Frees runner disk first: `sudo rm -rf` of toolchains the job never uses (.NET, Android SDK, GHC, CodeQL) and
+     `docker image prune --all`, with `df -h` before and after. See [Disk space](#disk-space).
    - `uv sync --locked --no-dev --extra convert` (`update --convert` stores conversions with every backend).
-   - Workspace: `SIGHARVEST_HOME=.ws`, so the layout is `.ws/sources.yaml`, `.ws/data/sigharvest.db` and
-     `.ws/data/cache/git/` (bare, shallow, blob-filtered clones). The cache holds `.ws/data` without `logs/`, key
-     `sigharvest-ws-v1-Linux-YYYY-MM-DD`, restore-keys `sigharvest-ws-v1-Linux-` (newest earlier day).
-     `cold_start` skips the restore. The database holds every ingested document, so `corpus/` is not cached.
-   - `sigharvest update --convert --convert-scope canonical --time-budget 150 --sources sources/curated.yaml --sources
+   - Workspace: `SIGHARVEST_HOME=.ws`, so the layout is `.ws/sources.yaml`, `.ws/data/sigharvest.db`,
+     `.ws/data/cache/source-snapshots/` and `.ws/data/cache/git/` (bare, shallow, blob-filtered clones). The cache
+     holds `.ws/data` without `logs/` and without `cache/git/`, key `sigharvest-ws-v2-Linux-YYYY-MM-DD`,
+     restore-keys `sigharvest-ws-v2-Linux-` (newest earlier day). `cold_start` skips the restore. The database holds
+     every ingested document, so neither `corpus/` nor the clones are cached: `--remote-check` skips an unchanged
+     source with one `git ls-remote`, a changed one is cloned again (shallow), and `SIGHARVEST_GIT_CACHE=drop`
+     deletes each clone once its source is ingested.
+   - `sigharvest update --remote-check --convert --convert-scope canonical --time-budget 150 --sources sources/curated.yaml --sources
      sources/extended.yaml --workers N --allow-failures --max-failed-sources 10 --report-file ....json`: the full
      corpus, the same list as `init --preset all` (the `--sources` files are joined and replace the workspace
      `sources.yaml`; the database is created when missing). `--convert-scope canonical` converts only the copy of
      each logic that the index and the release files read. `--time-budget 150`: no fetch or conversion starts after
-     150 minutes; validation, index, gates and the report still run and the run commits what it did. When sources
+     150 minutes; validation, index, gates and the report still run and the run commits what it did. A fetch the
+     free disk cannot admit is deferred the same way. When sources
      were left (`counts.sources_deferred` in the JSON report) the step outputs `partial=true`: no release that night,
      the workspace is cached and the next night syncs the left sources first. See
      [Full corpus runtime](#full-corpus-runtime).
      A failed gate exits 1: no release, and the cache is not saved, so the last good snapshot survives. An
      update that is killed (step timeout, cancellation) or stops on an error (exit 2) saves its progress under
-     `sigharvest-ws-v1-Linux-YYYY-MM-DD-partial-<run>-<attempt>`: the next night restores the newest entry and
+     `sigharvest-ws-v2-Linux-YYYY-MM-DD-partial-<run>-<attempt>`: the next night restores the newest entry and
      resumes (clones, ingested documents and committed conversion batches are kept; the killed run is recorded as
      interrupted), and the next successful run's snapshot supersedes it.
    - (complete runs only) The newest non-draft `rules-*` release: its `manifest.json` and `index.json.gz` go to `.out/previous`.
@@ -300,11 +306,39 @@ assume a cold run fits one night:
 - A night that leaves sources unsynced (`counts.sources_deferred > 0`) caches its progress and publishes nothing
   (`partial=true` in the job summary); the next night resumes from the cache. The first release appears after the
   night on which every source was synced once.
-- Later nights fetch only what changed (`git fetch --depth 1` per source).
-- Cache size: the cached `.ws/data` of the measured run is about 12 GB before compression (git cache 5.7 GB,
-  source snapshots 4.0 GB, database 2.2 GB), close to the repository's 10 GB Actions cache quota; GitHub evicts the
-  oldest entries first, so only the newest snapshot is kept. If a save fails for size, the next night is a cold
-  start again: watch the "Save workspace" step on the first full-corpus nights.
+- Later nights check each source with `git ls-remote` (`--remote-check`) and clone again (shallow) only the ones that
+  changed.
+- Cache size: the git clones are not cached (they were 5.7 to 14 GB of `.ws/data`), so the entry is the database and
+  the source snapshots, about 7 GB before compression, under the repository's 10 GB Actions cache quota; GitHub
+  evicts the oldest entries first, so only the newest snapshot is kept. If a save fails for size, the next night is
+  a cold start again: watch the "Save workspace" step and the `du` lines of the update step.
+
+### Disk space
+
+A fresh `ubuntu-latest` runner has about 14 GB free; the full corpus needs about 16 GB locally with its clones kept.
+The build job therefore deletes unused preinstalled toolchains first (`df -h` before and after), drops each clone once
+its source is ingested (`SIGHARVEST_GIT_CACHE=drop`), so the peak is the database, the snapshots, `corpus/` and the
+clones still in flight, and does not cache what can be refetched.
+
+Every command that writes checks the free space of its destination first (`statvfs`, the space available to the
+user, never root-reserved blocks); a refusal is a `SpaceError` (exit 2) naming what did not fit. For `sync` and
+`update` the check is in two parts: before the sync, the fetches that can run at once (`--workers`) plus the
+database growth of the whole sync; then each fetch again when it starts, against the space free at that moment and
+the fetches still running. With `update` a fetch that does not fit is deferred to the next run like one past the
+time budget (`counts.sources_deferred`, a note in the run report); `sync` reports it as a failed source. The
+estimates are environment variables (nonnegative integers, bytes):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `SIGHARVEST_DISK_RESERVE_BYTES` | 268435456 (256 MiB) | Left free on every filesystem on top of the estimates; the nightly sets 4 GiB (repo variable of the same name overrides) for validation, index, release staging and the cache archive |
+| `SIGHARVEST_DISK_RESERVE_INODES` | 1024 | The same for inodes |
+| `SIGHARVEST_DISK_SYNC_SOURCE_BYTES` | 33554432 (32 MiB) | One fetch: twice this for the snapshot, once for `corpus/<name>`, twice for the clone or staging |
+| `SIGHARVEST_DISK_SYNC_DB_SOURCE_BYTES` | 4194304 (4 MiB) | Database growth per source not synced before (an eighth for the others), charged again for the WAL |
+| `SIGHARVEST_DISK_TEMP_BYTES` | 67108864 (64 MiB) | Python and SQLite temporary files |
+| `SIGHARVEST_DISK_TEST_VERSION_BYTES`, `SIGHARVEST_DISK_RELEASE_MIN_BYTES` | 128 KiB, 64 MiB | Validation results per rule version; minimum release staging |
+
+To try a smaller disk on a larger machine, raise the reserve by the difference: with 334 GiB free,
+`SIGHARVEST_DISK_RESERVE_BYTES=$(( (334 - 14) * 1024**3 ))` behaves like a runner with 14 GiB free.
 - Transient fetch failures (a clone that stalls for 60 s, a dropped connection) are retried twice per source; the
   38 failures of the measured run were 37 clones that stalled for 60 s (each cloned in seconds when tried again)
   and one repository that was too large (removed, see
@@ -335,9 +369,9 @@ assume a cold run fits one night:
 - `sigharvest --version`; `SIGHARVEST_HOME` is the workspace root. Exit codes: 0 ok; 1 failed gate, failed sources
   (without `--allow-failures`), findings at or above `--fail-on`, or an empty export; 2 usage or I/O error (also a
   held workspace lock).
-- `sigharvest update --sources FILE (repeatable) --workers N --allow-failures --max-failed-sources PCT --report-file
-  PATH --time-budget MINUTES --convert-scope all|canonical`; the JSON report's `counts.sources_deferred` and
-  `counts.conversions_deferred` say what a budget left for the next run.
+- `sigharvest update --sources FILE (repeatable) --workers N --remote-check --allow-failures --max-failed-sources PCT
+  --report-file PATH --time-budget MINUTES --convert-scope all|canonical`; the JSON report's `counts.sources_deferred`
+  and `counts.conversions_deferred` say what a budget (time or disk) left for the next run.
 - `sigharvest release build OUT --licence-class CLASS (repeatable) --build-epoch UNIX --previous DIR`.
 - `sigharvest site build OUT --release DIR --base-url /path/ --site-url ORIGIN --build-epoch UNIX` (also
   `--max-pages`, `--max-files`).
