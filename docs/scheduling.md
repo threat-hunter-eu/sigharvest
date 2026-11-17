@@ -30,7 +30,7 @@ workspace, instead of exiting 2 at once.
 
 ## systemd
 
-Files in [`deploy/systemd/`](../deploy/systemd/): `sigharvest-update.service` (oneshot, waits up to 10 minutes for
+Files in [`docs/deploy/systemd/`](deploy/systemd/): `sigharvest-update.service` (oneshot, waits up to 10 minutes for
 a busy workspace), `sigharvest-update.timer` (daily 06:17, `Persistent=true`), `sigharvest-update-failed@.service`
 (OnFailure hook: replace its ExecStart with your notifier). Tokens for sources that need one (`auth:`) go in
 `/etc/sigharvest/env` (`EnvironmentFile=`), never in sources.yaml.

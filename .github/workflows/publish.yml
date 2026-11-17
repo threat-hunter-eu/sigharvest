@@ -64,7 +64,7 @@ jobs:
           fi
       # README images are relative paths on GitHub; the PyPI page needs absolute URLs (docs/conventions.md).
       - name: README with absolute URLs for PyPI
-        run: python3 scripts/pypi_readme.py
+        run: python3 scripts/maintainer/pypi_readme.py
       # --no-sources: build exactly what an index install would resolve, ignoring any [tool.uv.sources] overrides.
       - run: uv build --no-sources
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

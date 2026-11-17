@@ -1,10 +1,10 @@
-# privacy-gate allowlist for sigharvest (scripts/privacy_gate.py, run by .github/workflows/ci.yml)
+# privacy-gate allowlist for sigharvest (scripts/maintainer/privacy_gate.py, run by .github/workflows/ci.yml)
 # Format: <path-glob> <rule-id|glob|*> [re:<regex matched against the offending line>] -- <justification>
 # Keep entries narrow (prefer a re: filter) and always justified. Unused entries are reported.
 # Project-specific rules come from the terms file (SIGHARVEST_PRIVACY_TERMS); entries below name them only by glob.
 
 # --- the gate itself ------------------------------------------------------------
-scripts/privacy_gate.py * -- the gate contains the patterns it looks for
+scripts/*privacy_gate.py * -- the gate contains the patterns it looks for
 
 # --- public Sigma taxonomy: product names used as logsource product values ------
 src/*/logsource_catalog.py vendor-* -- public Sigma logsource product names (taxonomy), not integrations

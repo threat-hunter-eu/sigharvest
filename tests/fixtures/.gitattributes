@@ -1,0 +1,2 @@
+# Preserve the exact BOM/CRLF bytes used by the document identity golden fixture.
+effective-documents/bom-crlf-directive.yml -text whitespace=cr-at-eol

@@ -82,7 +82,7 @@ jobs:
           uv run --no-sync sigharvest lint --help >/dev/null
 
   privacy:
-    # scripts/privacy_gate.py: secrets, private paths, private files and non-noreply emails in the tree and in every
+    # scripts/maintainer/privacy_gate.py: secrets, private paths, private files and non-noreply emails in the tree and in every
     # commit; gitleaks (pinned, checksum verified) runs inside it. Project-specific terms are not in the repository:
     # they come from the secret SIGHARVEST_PRIVACY_TERMS (skipped with a notice when it is not set). Exemptions with a
     # justification go to .github/privacy-allowlist.txt.
@@ -122,4 +122,4 @@ jobs:
           else
             echo "::notice::secret SIGHARVEST_PRIVACY_TERMS is not set: only the generic privacy rules run"
           fi
-          python3 -I scripts/privacy_gate.py . --allowlist .github/privacy-allowlist.txt --history --gitleaks "$RUNNER_TEMP/gitleaks"
+          python3 -I scripts/maintainer/privacy_gate.py . --allowlist .github/privacy-allowlist.txt --history --gitleaks "$RUNNER_TEMP/gitleaks"

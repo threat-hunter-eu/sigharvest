@@ -96,7 +96,7 @@ minutes): `scripts/ci-full-local.sh` (`--quick` runs the push set only).
   `release build`, `coverage --navigator` and every web page and JSON endpoint. Rule sources are local fixture git
   repositories built by `tests/acceptance/lib/make_fixtures.py`; only PyPI is contacted. See
   `tests/acceptance/README.md`.
-- `privacy` runs `scripts/privacy_gate.py --history` (stdlib only) over the tree and every commit: secrets (with
+- `privacy` runs `scripts/maintainer/privacy_gate.py --history` (stdlib only) over the tree and every commit: secrets (with
   gitleaks), private paths and hosts, files that must not be published (databases, keys, `.env`, office documents)
   and author/committer emails that are not noreply. Project-specific terms are kept out of the repository: the
   gate reads them from the file named by `SIGHARVEST_PRIVACY_TERMS` (format in `load_terms`); CI writes the
@@ -214,13 +214,13 @@ the run). Before turning it on:
 
 The `build` job refuses a tag whose commit is not on `main` (`git merge-base --is-ancestor "$GITHUB_SHA"
 origin/main`), restores no uv cache (`enable-cache: false`), makes the README's relative image paths absolute
-(`scripts/pypi_readme.py`, so they show on PyPI) and builds with `uv build --no-sources`. Only the
+(`scripts/maintainer/pypi_readme.py`, so they show on PyPI) and builds with `uv build --no-sources`. Only the
 `publish` job, inside the protected environment, has `id-token: write`.
 
 ## Repository settings checklist
 
 For the public repository (nothing here is configured by the workflows): Dependabot alerts and security updates on;
-private vulnerability reporting on (SECURITY.md points to it); secret scanning and push protection on; the `pypi`
+private vulnerability reporting on (.github/SECURITY.md points to it); secret scanning and push protection on; the `pypi`
 environment above; a ruleset on `main` (no force-push or deletion, PR required, "Require review from Code Owners"
 for `.github/CODEOWNERS`, status checks `ruff`, `pytest`, `privacy gate`, `actionlint`); a ruleset on the `data`
 branch (no force-push or deletion; pushes from Actions allowed). Turn `SIGHARVEST_SIGNING_ENABLED` on only there.
@@ -239,7 +239,7 @@ runs no build. Users download from `https://github.com/threat-hunter-eu/sigharve
   private key is the secret `SIGHARVEST_RULES_APP_KEY` of the environment `rules-publish` (deployment branches: `main`
   only), so no other job, branch or pull request can read it.
 - Signing: the `sign` job signs only when **both** repositories are verified public (same fail-closed API check).
-  The Sigstore identity stays this repository's `nightly.yml` on `main` (see SECURITY.md).
+  The Sigstore identity stays this repository's `nightly.yml` on `main` (see .github/SECURITY.md).
 - `publish` adds `build-info.json` (tool repository, commit, run URL; not in `SHA256SUMS`). The data repository's
   `pages.yml` runs on `release: published` (App-token releases fire it), checks that the commit is on this
   repository's `main` and builds the site with that commit. This repository's `pages` job and `pages.yml` are skipped

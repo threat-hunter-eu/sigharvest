@@ -162,7 +162,7 @@ README_IMAGE = re.compile(r'<(?:img|source)\b[^>]*?\b(?:src|srcset)="([^"]+)"')
 
 def test_readme_links_are_absolute_and_images_relative():
     """docs/conventions.md: README links are absolute; its own images are relative (they render on GitHub while the
-    repository is private) and scripts/pypi_readme.py makes them absolute for PyPI at build time."""
+    repository is private) and scripts/maintainer/pypi_readme.py makes them absolute for PyPI at build time."""
     text = "\n".join(line for _, line in _prose(ROOT / "README.md"))
     images = README_IMAGE.findall(text) + re.findall(r"!\[[^\]]*\]\(([^)\s]+)\)", text)
     relative_links = [t for t in set(LINK.findall(text)) - set(images) if not t.startswith("#") and not re.match(r"[a-z][a-z0-9+.-]*:", t, flags=re.I)]
@@ -175,7 +175,7 @@ def test_pypi_readme_is_absolute_and_resolves():
     """What publish.yml puts on PyPI: every link and image absolute, the repository's own ones pointing at files."""
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location("pypi_readme", ROOT / "scripts" / "pypi_readme.py")
+    spec = importlib.util.spec_from_file_location("pypi_readme", ROOT / "scripts" / "maintainer" / "pypi_readme.py")
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -190,7 +190,7 @@ def test_pypi_readme_is_absolute_and_resolves():
             assert t.startswith("https://") and "/blob/" not in t, t  # a blob/ URL is an HTML page, not the image
     assert mod.absolute(out, mod.repository(ROOT)) == out  # idempotent
     publish = (ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
-    assert 0 <= publish.index("scripts/pypi_readme.py") < publish.index("uv build"), "publish.yml rewrites README before building"
+    assert 0 <= publish.index("scripts/maintainer/pypi_readme.py") < publish.index("uv build"), "publish.yml rewrites README before building"
 
 
 def test_relative_links_and_images_exist():
