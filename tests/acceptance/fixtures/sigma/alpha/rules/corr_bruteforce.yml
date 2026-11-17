@@ -1,0 +1,19 @@
+title: Fixture Brute Force Correlation
+id: 6f8a1c2e-0005-4a5b-9c1d-000000000001
+status: test
+description: Ten failed logons for one user within five minutes (acceptance fixture).
+author: Acceptance Fixture
+date: 2026-01-01
+tags:
+    - attack.credential-access
+    - attack.t1110
+correlation:
+    type: event_count
+    rules:
+        - fixture_failed_logon
+    group-by:
+        - TargetUserName
+    timespan: 5m
+    condition:
+        gte: 10
+level: high

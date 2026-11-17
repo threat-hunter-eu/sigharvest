@@ -1,0 +1,26 @@
+An article, not itself a rule.
+
+```yaml
+title: Fenced rule
+logsource:
+  product: windows
+detection:
+  selection:
+    Image: 'C:\new\tool.exe'
+  condition: selection
+```
+
+A second example:
+
+    title: Indented rule
+    logsource:
+      product: linux
+    detection:
+      selection:
+        Image: /bin/sh
+      condition: selection
+
+Unbounded prose below must never become a rule:
+title: Fragment
+logsource: {product: windows}
+detection: {selection: {EventID: 1}, condition: selection}

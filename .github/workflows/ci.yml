@@ -1,0 +1,125 @@
+# The checks that run on every push, to any branch: kept small on purpose (each job is billed rounded up to a whole
+# minute). Python 3.13, [convert-legacy], Windows, the phone-width layout, the acceptance matrix and the docs examples
+# run in ci-full.yml and ci-docs.yml (pull requests to main, daily when enabled, manual). docs/automation.md#what-runs-when
+# lists both sets; tests/test_workflows.py keeps this one small.
+name: CI
+
+on:
+  push:
+    # Every branch (and no tags: a branch filter alone leaves tag pushes out). `data` only carries stats commits.
+    branches-ignore: [data]
+  # Pull requests to main run lint (with tests/test_workflows.py) and the privacy gate again: a PR from a fork, or
+  # one opened by Dependabot, must not reach main without them. test (and engine) run there only for a fork's PR,
+  # whose branch never got a push run here.
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: ruff, mypy, actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      ACTIONLINT_VERSION: '1.7.11'
+      ACTIONLINT_SHA256: '900919a84f2229bac68ca9cd4103ea297abc35e9689ebb842c6e34a3d1b01b0a' # actionlint_1.7.11_linux_amd64.tar.gz
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          python-version: '3.12'
+      - run: uv sync --locked
+      - run: uv run --no-sync ruff check src tests scripts
+      - run: uv run --no-sync ruff format --check src tests scripts
+      - run: uv run --no-sync pytest -q -n0 tests/test_workflows.py # the workflow invariants, on pull requests too
+      - run: uv run --no-sync mypy # the same check as the pre-commit hook ([tool.mypy] in pyproject.toml)
+      - name: actionlint (pinned release binary, checksum verified)
+        run: |
+          set -euo pipefail
+          tgz="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -fsSLO "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$tgz"
+          echo "$ACTIONLINT_SHA256  $tgz" | sha256sum --check
+          tar -xzf "$tgz" actionlint
+          cd "$GITHUB_WORKSPACE"
+          "$RUNNER_TEMP/actionlint" -color
+
+  test:
+    name: pytest (py3.12, convert)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          python-version: '3.12'
+      - run: uv sync --locked # the dev group includes sigharvest[convert]
+      - name: Installed pySigma and backends
+        run: uv run --no-sync python -c "import importlib.metadata as m, sigharvest.conversion as c; print('pysigma', m.version('pysigma'), c.BACKENDS)"
+      # Offline: the tests use local fixtures and git repositories only. tests/test_workflows.py runs here too.
+      - run: uv run --no-sync pytest -n auto
+      - name: CLI contract used by the workflows
+        run: |
+          uv run --no-sync sigharvest --version
+          uv run --no-sync sigharvest update --help >/dev/null
+          uv run --no-sync sigharvest release build --help >/dev/null
+          uv run --no-sync sigharvest site build --help >/dev/null
+          uv run --no-sync sigharvest discover --help >/dev/null
+          uv run --no-sync sigharvest lint --help >/dev/null
+
+  privacy:
+    # scripts/privacy_gate.py: secrets, private paths, private files and non-noreply emails in the tree and in every
+    # commit; gitleaks (pinned, checksum verified) runs inside it. Project-specific terms are not in the repository:
+    # they come from the secret SIGHARVEST_PRIVACY_TERMS (skipped with a notice when it is not set). Exemptions with a
+    # justification go to .github/privacy-allowlist.txt.
+    name: privacy gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GITLEAKS_VERSION: '8.21.2'
+      # sha256 of gitleaks_8.21.2_linux_x64.tar.gz, pinned here: a checksums file from the same release proves nothing
+      GITLEAKS_SHA256: '5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the gate and gitleaks scan the whole history
+          persist-credentials: false
+
+      - name: Install gitleaks (pinned, checksum verified)
+        run: |
+          set -euo pipefail
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tgz="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -fsSLO "$base/$tgz"
+          echo "$GITLEAKS_SHA256  $tgz" | sha256sum --check --strict
+          tar -xzf "$tgz" gitleaks
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Privacy gate (tree + history)
+        env:
+          TERMS: ${{ secrets.SIGHARVEST_PRIVACY_TERMS }}
+        run: |
+          set -euo pipefail
+          if [ -n "$TERMS" ]; then
+            umask 077
+            printf '%s\n' "$TERMS" > "$RUNNER_TEMP/privacy.terms"
+            export SIGHARVEST_PRIVACY_TERMS="$RUNNER_TEMP/privacy.terms"
+          else
+            echo "::notice::secret SIGHARVEST_PRIVACY_TERMS is not set: only the generic privacy rules run"
+          fi
+          python3 -I scripts/privacy_gate.py . --allowlist .github/privacy-allowlist.txt --history --gitleaks "$RUNNER_TEMP/gitleaks"

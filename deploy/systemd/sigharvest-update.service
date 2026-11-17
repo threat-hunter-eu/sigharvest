@@ -1,0 +1,21 @@
+# sigharvest: daily update of the Sigma rule index (sync, validate, index, gates, report).
+# Install: copy to /etc/systemd/system/, adjust SIGHARVEST_BIN and SIGHARVEST_HOME, then
+#   systemctl daemon-reload && systemctl enable --now sigharvest-update.timer
+# Exit code 1 (a source or a gate failed) marks the unit failed, which starts sigharvest-update-failed@.service.
+[Unit]
+Description=sigharvest: sync, validate and index Sigma rules
+Wants=network-online.target
+After=network-online.target
+OnFailure=sigharvest-update-failed@%n.service
+
+[Service]
+Type=oneshot
+Environment=SIGHARVEST_BIN=/opt/sigharvest/.venv/bin/sigharvest
+Environment=SIGHARVEST_HOME=/srv/sigma
+# tokens for sources that need one (auth: VAR in sources.yaml) come from a root-only env file, never from sources.yaml
+EnvironmentFile=-/etc/sigharvest/env
+UMask=0077
+ExecStart=/bin/sh -c 'exec "$SIGHARVEST_BIN" update --wait 600'
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=4h

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ r.title or 'Untitled rule' }}{% endblock %}
+{% block description %}{{ (r.description or ('Sigma rule ' ~ (r.title or '')))|shorten(160) }}{% endblock %}
+{% block ogtype %}article{% endblock %}
+{% block main %}
+<p class="crumbs"><a href="{{ base }}">rules</a>{% for c in r.collections %} / <a href="{{ base }}c/{{ c[1] }}.html">{{ c[0] }}</a>{% endfor %}</p>
+<article>
+<h1>{{ r.title or 'Untitled rule' }}</h1>
+{{ m.badges(r) }}
+{% if r.description %}<p class="desc">{{ r.description }}</p>{% endif %}
+<div class="grid2">
+<div>
+  <h2>Rule</h2>
+  {{ m.yaml_block(r) }}
+  <h2>Licence and source</h2>
+  {{ m.licence_block(r) }}
+  {% if r.sources|length > 1 %}<p class="muted">Also carried by: {{ r.sources[:12]|join(', ') }}{% if r.sources|length > 12 %} and {{ r.sources|length - 12 }} more{% endif %}.</p>{% endif %}
+</div>
+<aside>
+  <h2>Details</h2>
+  <dl class="kv">
+    <dt>log source</dt><dd><code>{{ r.logsource.product or '-' }}{% if r.logsource.category %} / {{ r.logsource.category }}{% endif %}{% if r.logsource.service %} / {{ r.logsource.service }}{% endif %}</code></dd>
+    {% if r.attack %}<dt>ATT&amp;CK interpretation</dt><dd>{% for tag in r.attack %}<div>{{ tag.label }}</div>{% endfor %}</dd>{% endif %}
+    {% if r.tags %}<dt>tags</dt><dd>{{ m.tag_chips(r.tags) }}</dd>{% endif %}
+    {% if r.modified %}<dt>modified</dt><dd>{{ r.modified }}</dd>{% endif %}
+    <dt>rule id</dt><dd><code>{{ r.rule_id }}</code></dd>
+    <dt>logic hash</dt><dd><code>{{ r.logic_hash[:16] }}</code></dd>
+    <dt>conversion</dt><dd>{% if r.conversion.tested %}{% for k, v in r.conversion.counts|dictsort %}{{ v }} {{ k }}{% if not loop.last %}, {% endif %}{% endfor %}
+      <details><summary>per backend</summary><ul class="chips">{% for t, st in r.conversion.targets %}<li><span>{{ t }}: {{ st }}</span></li>{% endfor %}</ul></details>
+      {% else %}<span class="muted">not tested in this release</span>{% endif %}</dd>
+  </dl>
+  {% if r.variants %}
+  <h2>Family variants</h2>
+  <p class="muted">{{ r.family_size - 1 }} other version{{ '' if r.family_size == 2 else 's' }} of this rule (same id, logic or meaning) from other repositories.</p>
+  <ul>{% for v in r.variants %}<li><a href="{{ m.rule_href(v[0], v[4]) }}">{{ v[1] or 'Untitled' }}</a> <span class="muted mono">score {{ v[2] }}{% if v[3] %}, {{ v[3] }}{% endif %}</span></li>{% endfor %}</ul>
+  {% endif %}
+  <h2>Embed</h2>
+  <details><summary>rule card for an article</summary>
+  <pre class="yaml snippet" id="embed-{{ r.lid }}"><code>&lt;div class="sigharvest-rule" data-rule="{{ r.lid }}"&gt;&lt;a href="{{ base }}rule.html?l={{ r.lid }}"&gt;Sigma rule {{ r.lid }}&lt;/a&gt;&lt;/div&gt;
+&lt;script src="{{ base }}static/embed.js" defer&gt;&lt;/script&gt;</code></pre>
+  <p><button class="btn" type="button" data-copy="embed-{{ r.lid }}">copy snippet</button></p>
+  </details>
+</aside>
+</div>
+</article>
+{% endblock %}
+{% block scripts %}<script src="{{ base }}static/common.js" defer></script>{% endblock %}

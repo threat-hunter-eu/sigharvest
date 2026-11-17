@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, copy_btn, cmd %}
+{% block title %}ATT&CK coverage{% endblock %}
+{% block section %}coverage{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/coverage.css">{% endblock %}
+{% block content %}
+{% if missing %}
+<div class="page-head"><div><h1>ATT&amp;CK coverage</h1></div></div>
+<div class="no-results"><h2>The ATT&amp;CK catalogue is not downloaded yet</h2>
+  <p>The technique matrix needs MITRE's Enterprise ATT&amp;CK catalogue. Download it once in this workspace, then reload this page:</p>{{ cmd('c-cov', 'sigharvest coverage') }}</div>
+{% else %}
+{% macro tip(c) %}{{ c.id }} {{ c.name }}: {{ c.n|num }} tagged rule{{ 's' if c.n != 1 }}, {{ c.families|num }} famil{{ 'ies' if c.families != 1 else 'y' }}{% endmacro %}
+<div class="page-head">
+  <div><h1>ATT&amp;CK coverage</h1><p class="lede">ATT&amp;CK {{ stats.version }}: how many rules are tagged with each technique. Click a cell to search its rules.</p></div>
+  <div class="actions">{{ copy_btn('#cov-link', 'Copy link', 'btn') }}<span id="cov-link" hidden>/coverage?{{ scope|qs }}</span>
+    <a class="btn btn-primary" href="/coverage/navigator.json?{{ scope|qs }}">{{ icon('layers') }}Download Navigator layer</a></div>
+</div>
+<form method="get" action="/coverage" class="cov-tools">
+  {% for key, value in scope.items() if key not in ['product', 'level', 'status', 'licence', 'source'] %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+  <label class="field">Level<select name="level" data-autosubmit><option value="">any level</option>{% for lv in ['critical', 'high', 'medium', 'low', 'informational'] %}<option value="{{ lv }}"{{ ' selected' if params.level == lv }}>{{ lv }}</option>{% endfor %}</select></label>
+  <label class="field">Status<select name="status" data-autosubmit><option value="">any status</option>{% for v in ['stable', 'test', 'experimental'] %}<option value="{{ v }}"{{ ' selected' if params.status == v }}>{{ v }}</option>{% endfor %}</select></label>
+  <label class="field">Product<select name="product" data-autosubmit><option value="">all products</option>{% for p in products %}<option value="{{ p }}"{{ ' selected' if params.product == p }}>{{ p }}</option>{% endfor %}</select></label>
+  <label class="field">Licence<select name="licence" data-autosubmit><option value="">any licence</option>{% for c in licence_classes %}<option value="{{ c }}"{{ ' selected' if params.licence == c }}>{{ LIC_WORDS[c] }}</option>{% endfor %}</select></label>
+  <label class="field">Source<select name="source" data-autosubmit><option value="">all sources</option>{% for n in sources %}<option value="{{ n }}"{{ ' selected' if params.source == n }}>{{ n }}</option>{% endfor %}</select></label>
+  <noscript><button type="submit" class="btn">Apply</button></noscript>
+  {% if scope %}<a class="small" href="/coverage">Clear filters</a>{% endif %}
+</form>
+<div class="spread mb-4">
+  <p class="small mb-0"><a href="{{ stats.rules_url }}"><b>{{ stats.tagged|num }}</b> of {{ stats.rules|num }} rules</a> carry a technique tag &middot; <b>{{ stats.covered|num }}</b> of {{ stats.techniques|num }} techniques and sub-techniques are tagged at least once.</p>
+  <span class="legend" aria-hidden="true">fewer <span class="h0"></span><span class="h1"></span><span class="h2"></span><span class="h3"></span><span class="h4"></span><span class="h5"></span> more</span>
+</div>
+<p class="xs muted cov-scroll-hint" id="cov-hint">{{ columns|length }} tactics, left to right: scroll the matrix sideways (Shift + mouse wheel, arrow keys once it has focus, or swipe) to see them all.</p>
+<h2 class="sr-only">Technique matrix</h2>
+<div class="cov-matrix" aria-label="ATT&CK coverage by tactic" aria-describedby="cov-hint" tabindex="0">
+  {% for col in columns %}
+  <section class="cov-tactic" aria-labelledby="t-{{ col.short }}">
+    <h3 id="t-{{ col.short }}">{{ col.name }}<small>{{ col.cells|length }}</small></h3>
+    <ul>
+    {% for c in col.cells %}
+      <li class="cov-cell h{{ c.heat }}{{ ' none' if not c.n }}" title="{{ tip(c) }}">
+        {% if c.subs %}<details><summary><span class="cov-name"><b>{{ c.id }}</b> {{ c.name }}</span><span class="cov-meta"><span class="cov-more">{{ c.subs|length }} sub</span><span class="cov-gap"></span><span class="cov-n">{{ c.n|num }}</span></span></summary>
+          <div class="cov-body"><a href="{{ c.tag_url }}">All {{ c.n|num }} tagged rules</a>
+            <ul class="cov-subs">{% for sc in c.subs %}<li class="{{ 'none' if not sc.n }}" title="{{ tip(sc) }}"><a href="{{ sc.tag_url }}"><b>{{ sc.id }}</b> {{ sc.name }}</a><span class="cov-n">{{ sc.n|num }}</span></li>{% endfor %}</ul></div></details>
+        {% else %}<a class="cov-link" href="{{ c.tag_url }}"><span class="cov-name"><b>{{ c.id }}</b> {{ c.name }}</span><span class="cov-meta"><span class="cov-gap"></span><span class="cov-n">{{ c.n|num }}</span></span></a>{% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+<p class="xs muted mt-4">Tags say what a rule is meant to detect, not that it was tested. A rule tagged with a sub-technique also counts for its parent. {{ attribution }}</p>
+{% if normalisation %}<details class="small"><summary>ATT&amp;CK tags that were revoked, deprecated or renamed</summary>
+<ul class="prose">{% for tag in normalisation %}<li>{{ tag.label }}: {{ tag.rules }} rules</li>{% endfor %}</ul></details>{% endif %}
+{% if unknown %}<details class="small"><summary>Tags that are not technique ids in this ATT&amp;CK version</summary>
+<ul class="prose">{% for tag, n in unknown %}<li><a href="/search?{{ {'tag': 'attack.' ~ tag|lower}|qs }}">{{ tag }}</a>: {{ n|num }} rules</li>{% endfor %}</ul></details>{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+/* ATT&CK coverage matrix (coverage.html). Cell colours are the .h0-.h5 heat classes of style.css. */
+.cov-matrix { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(180px, 1fr); max-width: 100%; gap: 0 12px; align-items: start; overflow: auto;
+  max-height: calc(100vh - 150px); min-height: 360px; padding: 0 12px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  overscroll-behavior: contain; }
+.cov-tactic { min-width: 0; }
+.cov-tactic h3 { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin: 0 -4px 6px; padding: 10px 4px 8px;
+  background: var(--surface); border-bottom: 2px solid var(--line-2); font-size: var(--t-sm); white-space: nowrap; }
+.cov-tactic h3 small { flex: none; min-width: 22px; padding: 0 6px; border-radius: var(--r-pill); background: var(--sunken); font-weight: 400; color: var(--muted); font-size: var(--t-xs); line-height: 18px; text-align: center; }
+.cov-tactic > ul { list-style: none; display: grid; gap: 3px; }
+.cov-cell { min-width: 0; border-radius: 4px; font-size: 12.5px; line-height: 1.3; color: var(--ink); border: 1px solid transparent; }
+.cov-cell.h4 { color: #0b1210; } /* white on the mid teal is 3.6:1 */
+.cov-cell.h5 { color: #fff; }
+@media screen { :root[data-theme="dark"] .cov-cell.h5 { color: #0b1210; } }
+@media screen and (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cov-cell.h5 { color: #0b1210; } }
+.cov-cell.none { background: transparent; border: 1px dashed var(--line-2); color: var(--muted); }
+.cov-cell:hover { outline: 2px solid var(--ink); outline-offset: 0; }
+.cov-cell a { color: inherit; }
+.cov-link, .cov-cell summary { display: grid; gap: 1px; padding: 4px 7px; min-width: 0; }
+.cov-link:hover { text-decoration: none; }
+.cov-cell summary { list-style: none; cursor: pointer; }
+.cov-cell summary::-webkit-details-marker { display: none; }
+.cov-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cov-name b { font-weight: 700; }
+.cov-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.cov-gap { flex: 1; }
+.cov-n { font-weight: 700; }
+.cov-body { padding: 6px 7px 7px; background: var(--surface); color: var(--ink); border-radius: 0 0 4px 4px; border: 1px solid var(--line); font-size: 12px; }
+.cov-body a { color: var(--accent); }
+.cov-subs { list-style: none; display: grid; gap: 4px; margin-top: 6px; }
+.cov-subs li { display: flex; justify-content: space-between; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
+.cov-subs li.none a { color: var(--muted); }
+.cov-subs .cov-n { color: var(--ink-2); }
+/* The matrix scrolls inside its own box (the page never scrolls sideways); the hint says so on screens too narrow
+   for every tactic, and a phone gets narrower columns. */
+.cov-scroll-hint { margin: 0 0 6px; }
+@media (min-width: 2400px) { .cov-scroll-hint { display: none; } }
+@media (max-width: 640px) { .cov-matrix { grid-auto-columns: minmax(138px, 1fr); max-height: none; } }

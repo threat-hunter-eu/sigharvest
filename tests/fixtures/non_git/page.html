@@ -1,0 +1,13 @@
+<html><body><h1>Example</h1>
+<pre><code class="language-yaml"><span>title:</span> HTML rule
+logsource:
+  product: windows
+detection:
+  selection:
+    CommandLine|contains: '&lt;script&gt;&amp;'
+  condition: selection
+</code></pre>
+<code>title: Inline fragment</code>
+<pre>title: Missing detection
+logsource: {product: windows}</pre>
+</body></html>

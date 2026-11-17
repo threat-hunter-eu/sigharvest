@@ -1,0 +1,80 @@
+{% from "_ui.html" import icon, when %}<!doctype html>
+{%- if false %}{% block section %}{% endblock %}{% endif %}
+{%- set active = self.section()|trim %}
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f5f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c110f" media="(prefers-color-scheme: dark)">
+<title>{% block title %}sigharvest{% endblock %} - sigharvest</title>
+<script src="/static/theme.js"></script>
+<link rel="preload" href="/static/fonts/AtkinsonHyperlegibleNext.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/Archivo-Display.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/AtkinsonHyperlegibleMono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/harvest-base.css">
+<link rel="stylesheet" href="/static/style.css">{% block head %}{% endblock %}
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="shell">
+  <nav class="side" aria-label="Main">
+    <a class="brand" href="/"><span class="brand-mark">{{ icon('harvest') }}</span><span>sigharvest<small>Sigma rule index</small></span></a>
+    <ul class="nav">
+      {% for key, href, ico, label in [
+        ('overview', '/', 'overview', 'Overview'),
+        ('search', '/search', 'search', 'Search'),
+        ('coverage', '/coverage', 'coverage', 'ATT&CK coverage'),
+        ('sources', '/sources', 'sources', 'Sources'),
+        ('changes', '/changes', 'changes', 'Changes'),
+        ('export', '/export', 'export', 'Export'),
+        ('about', '/about', 'about', 'About & licences')] %}
+      <li><a href="{{ href }}"{% if active == key %} aria-current="page"{% endif %}>{{ icon(ico) }}<span>{{ label }}</span>{% if key == 'changes' and st.new_badge %}<span class="dot" title="{{ st.new_badge|num }} new rules in the last update">{{ st.new_badge|num }}</span>{% endif %}</a></li>
+      {% endfor %}
+    </ul>
+    <p class="side-status">
+      {%- if st.empty %}Not updated yet
+      {%- else %}<span class="pulse{% if st.incomplete %} pulse-warn{% endif %}" aria-hidden="true"></span>Updated {{ when(st.last_sync) }}<br>{{ st.n_sources|num }} source{{ 's' if st.n_sources != 1 }} &middot; {{ st.n_rules|num }} rules{% if st.incomplete %} <strong>(incomplete)</strong>{% endif %}{% endif -%}
+    </p>
+    <ul class="nav nav-foot">
+      <li><a href="/api/docs" title="JSON API">{{ icon('api') }}<span>JSON API</span></a></li>
+      <li><button type="button" class="js-only" data-action="shortcuts" title="Keyboard shortcuts (?)">{{ icon('keyboard') }}<span>Shortcuts</span><kbd>?</kbd></button></li>
+      <li><button type="button" class="js-only" data-action="theme" aria-label="Switch colour theme" title="Switch colour theme (t)">{{ icon('theme') }}<span data-theme-label>Theme: auto</span></button></li>
+    </ul>
+  </nav>
+  <div class="frame">
+    <header class="topbar">
+      {% if active == 'search' and not st.empty %}<p class="muted small mb-0 js-only">Tip: press <kbd>/</kbd> to search, <kbd>?</kbd> for shortcuts</p>
+      {% else %}<form class="searchbar" action="/search" method="get" role="search">{{ icon('search') }}
+        <input type="search" name="q" id="global-search" autocomplete="off" spellcheck="false" placeholder="Search rules: mimikatz, T1003, process_creation, level:high" aria-label="Search rules">
+        <kbd class="js-only" aria-hidden="true">/</kbd>
+      </form>{% endif %}
+      <div class="topbar-end"><a class="btn btn-quiet btn-sm" href="{{ repo_url }}" rel="noopener noreferrer">{{ icon('external') }}GitHub</a></div>
+    </header>
+    <main id="main" class="page" tabindex="-1">
+      {% if st.incomplete %}<div class="notice notice-warn" id="incomplete-corpus" role="alert">{{ icon('about') }}<p><strong>Incomplete corpus.</strong> {{ st.incomplete }}</p></div>{% endif %}
+      {% if st.empty and active not in ('about', 'error') %}{% include "onboarding.html" %}{% else %}{% block content %}{% endblock %}{% endif %}
+    </main>
+  </div>
+</div>
+<dialog id="shortcuts" aria-labelledby="shortcuts-title">
+  <div class="card-head"><h2 id="shortcuts-title">Keyboard shortcuts</h2><button type="button" class="btn btn-quiet btn-sm" data-action="close-dialog">Close</button></div>
+  <div class="card-body keys"><dl>
+    <dt><kbd>/</kbd></dt><dd>Focus search</dd>
+    <dt><kbd>g</kbd> <kbd>o</kbd> / <kbd>s</kbd> / <kbd>c</kbd> / <kbd>e</kbd></dt><dd>Go to Overview, Search, Coverage, Export</dd>
+    <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next / previous result</dd>
+    <dt><kbd>Enter</kbd></dt><dd>Open the focused rule</dd>
+    <dt><kbd>x</kbd></dt><dd>Select the focused rule (<kbd>Shift</kbd>+<kbd>x</kbd>: whole page)</dd>
+    <dt><kbd>e</kbd></dt><dd>Export the selection (or this rule)</dd>
+    <dt><kbd>y</kbd></dt><dd>Copy rule YAML (on a rule page)</dd>
+    <dt><kbd>1</kbd>&hellip;<kbd>7</kbd></dt><dd>Switch query tab (on a rule page)</dd>
+    <dt><kbd>t</kbd></dt><dd>Switch the colour theme</dd>
+    <dt><kbd>Esc</kbd></dt><dd>Leave the search box, close dialogs, clear the selection</dd>
+  </dl></div>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

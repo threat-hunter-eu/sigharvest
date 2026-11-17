@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Sigma rule{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, follow">{% endblock %}
+{% block main %}
+<p class="crumbs"><a href="{{ base }}">rules</a></p>
+<div id="rule" aria-live="polite"><p class="status">Loading rule…</p></div>
+<noscript><p class="notice">This page shows a rule from the site's data files and needs JavaScript. The <a href="{{ base }}">search page</a> lists the curated rules without it.</p></noscript>
+{% endblock %}
+{% block scripts %}<script src="{{ base }}static/common.js" defer></script><script src="{{ base }}static/rule.js" defer></script>{% endblock %}

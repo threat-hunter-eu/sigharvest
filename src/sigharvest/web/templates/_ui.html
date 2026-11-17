@@ -1,0 +1,116 @@
+{#- Small shared pieces: icons, badges, buttons. Every coloured badge carries a word; every value is autoescaped. -#}
+{% macro icon(name, cls="ico") %}<svg class="{{ cls }}" aria-hidden="true"><use href="/static/icons.svg#{{ name }}"/></svg>{% endmacro %}
+
+{% macro lvl(level) -%}
+{%- set l = (level or '')|lower -%}
+{%- if l in ('critical', 'high', 'medium', 'low', 'informational') -%}<span class="badge lvl lvl-{{ l }}">{{ l }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro st(status) -%}
+{%- set s = (status or '')|lower -%}
+{%- if s -%}<span class="badge st st-{{ s if s in ('stable', 'test', 'experimental', 'deprecated', 'unsupported') else 'other' }}" title="Sigma status: {{ s }}">{{ s }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro lic(info) -%}
+<span class="badge lic lic-{{ info.cls }}" title="{{ info.title }}">{{ info.label }}</span>
+{%- endmacro %}
+
+{% macro lic_class(cls) -%}
+<span class="badge lic lic-{{ cls }}" title="{{ LIC_TITLES.get(cls, '') }}">{{ LIC_WORDS.get(cls, cls) }}</span>
+{%- endmacro %}
+
+{% macro val(v, show_ok=false) -%}
+{%- if v == 'ok' and show_ok %}<span class="badge val-valid" title="Passes pySigma validation and the Sigma schema">{{ icon('check') }}valid</span>
+{%- elif v == 'warning' %}<span class="badge val-warnings" title="pySigma validators raised warnings">warnings</span>
+{%- elif v == 'error' %}<span class="badge val-invalid" title="Fails pySigma validation or the Sigma schema">invalid</span>
+{%- elif not v and show_ok %}<span class="badge val-untested" title="Not validated yet">not validated</span>{% endif -%}
+{%- endmacro %}
+
+{% macro tech(tid, title='') -%}
+<a class="badge tech" href="/search?{{ {'technique': tid}|qs }}"{% if title %} title="{{ title }}"{% endif %}>{{ tid }}</a>
+{%- endmacro %}
+
+{% macro when(dt) -%}
+{%- if dt %}<time datetime="{{ dt.isoformat() }}" title="{{ dt|fulltime }}">{{ dt|reltime }}</time>{% else %}never{% endif -%}
+{%- endmacro %}
+
+{% macro copy_btn(target, label="Copy", cls="btn btn-sm") -%}
+<button type="button" class="{{ cls }} js-only" data-action="copy" data-target="{{ target }}">{{ icon('copy') }}{{ label }}</button>
+{%- endmacro %}
+
+{% macro cmd(id, command) -%}
+<div class="cmd"><code id="{{ id }}">{{ command }}</code>{{ copy_btn('#' ~ id) }}</div>
+{%- endmacro %}
+
+{% macro crumbs(items) -%}
+<ol class="crumbs">{% for label, href in items %}<li{% if not href %} aria-current="page"{% endif %}>{% if href %}<a href="{{ href }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</li>{% endfor %}</ol>
+{%- endmacro %}
+
+{% macro logsource(g) -%}
+{{ [g.product, g.category, g.service]|select|join(' / ') or 'any log source' }}
+{%- endmacro %}
+
+{#- One cell per installed backend; the class names are fixed, never built from rule data. -#}
+{% macro strip(g) -%}
+{%- set statuses = conv_statuses(g) -%}
+{#- Nothing converted yet (queries are converted on demand): a row of grey cells says nothing, so show none. -#}
+{%- if statuses -%}
+<span class="strip" title="{{ conv_summary(statuses) }}">
+  {%- for b in backends %}{% set x = statuses.get(b, '') %}<i role="img" class="{{ status_classes.get(x, '') }}" aria-label="{{ b }}: {{ status_labels.get(x, 'not tested') }}"></i>{% endfor -%}
+</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro pager(page, pages, href) -%}
+{% if pages > 1 %}
+<nav class="pager" aria-label="Pages">
+  {% if page > 1 %}<a class="btn btn-sm" href="{{ href(page - 1) }}" rel="prev">Previous</a>{% else %}<span class="btn btn-sm" aria-disabled="true">Previous</span>{% endif %}
+  <span>Page {{ page|num }} of {{ pages|num }}</span>
+  {% if page < pages %}<a class="btn btn-sm" href="{{ href(page + 1) }}" rel="next">Next</a>{% else %}<span class="btn btn-sm" aria-disabled="true">Next</span>{% endif %}
+</nav>
+{% endif %}
+{%- endmacro %}
+
+{#- A search result card (search, changes, source pages). r: a row from web.cards. -#}
+{% macro card(r, terms=[], selectable=true) -%}
+<li class="result" data-key="{{ r.logic_hash }}">
+  {% if selectable %}<input type="checkbox" name="h" value="{{ r.logic_hash }}" form="selection" aria-label="Select {{ r.title or 'rule' }}">{% else %}<span></span>{% endif %}
+  <a class="result-title open" href="/rule/{{ r.logic_hash[:16] }}">{{ r.title|mark(terms) if r.title else '(untitled)' }}</a>
+  <div class="result-side">{{ lvl(r.level) }}{{ lic(r.licence) }}</div>
+  {% if r.description %}<p class="result-desc">{{ r.description|mark(terms) }}</p>{% endif %}
+  <div class="result-meta"><span class="ls">{{ logsource(r) }}</span>{{ st(r.status) }}
+    {%- if r.techniques %}<span class="tag-list">{% for tid, name in r.techniques[:3] %}{{ tech(tid, name) }}{% endfor %}{% if r.techniques|length > 3 %}<span class="muted">+{{ r.techniques|length - 3 }}</span>{% endif %}</span>{% endif %}
+    <span class="copies" title="{{ r.copies }} {{ 'copy' if r.copies == 1 else 'copies' }} in {{ r.n_sources }} {{ 'source' if r.n_sources == 1 else 'sources' }}"><span class="pips" aria-hidden="true">{% for on in r.pips %}<i class="{{ 'on' if on }}"></i>{% endfor %}</span>{{ r.copies }} {{ 'copy' if r.copies == 1 else 'copies' }} &middot; {{ r.n_sources }} {{ 'source' if r.n_sources == 1 else 'sources' }}</span>
+    <span>from <b>{{ r.canonical_source }}</b></span>
+    {%- if r.family_size > 1 %}<a href="/family/{{ r.logic_hash[:16] }}" title="Versions of the same rule">{{ r.family_size }} variants</a>{% endif %}
+    {{ val(r.validation) }}
+    {%- if backends %}<span title="Converts to">{{ strip(r) }}</span>{% endif %}</div>
+  {%- if caller is defined %}<div class="result-extra">{{ caller() }}</div>{% endif %}
+</li>
+{%- endmacro %}
+
+{#- Overview charts (shared with suriharvest). ages: present.age_chart; t: present.spark. SVG geometry only, no inline style. -#}
+{% macro age_chart(ages, noun='rules') -%}
+<figure class="age" aria-labelledby="age-cap">
+  <figcaption id="age-cap"><b>Last changed</b> <span class="muted">{{ ages.share }}% of the {{ noun }} in the last 12 months</span></figcaption>
+  <div class="age-plot">
+    <svg class="age-bars" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="{{ noun|capitalize }} by the year they were last changed: {% for c in ages.cols %}{{ c.label }} {{ c.n|num }}{{ ', ' if not loop.last }}{% endfor %}">
+      <line class="age-base" x1="0" y1="100" x2="100" y2="100" vector-effect="non-scaling-stroke"/>
+      {%- for c in ages.cols %}<rect class="age-bar{% if c.now %} is-now{% endif %}" x="{{ c.x }}" y="{{ c.y }}" width="{{ c.w }}" height="{{ c.h }}"><title>{{ c.label }}: {{ c.n|num }} {{ noun if c.n != 1 else noun[:-1] }}</title></rect>{% endfor %}
+    </svg>
+    <ol class="age-axis" aria-hidden="true">{% for c in ages.cols %}<li{% if c.n == ages.peak and c.n %} class="is-peak"{% endif %}><b>{{ c.n|num }}</b><span>{{ c.short }}</span></li>{% endfor %}</ol>
+  </div>
+  {% if ages.unknown %}<p class="xs muted mb-0">{{ ages.unknown|num }} {{ noun ~ ' carry' if ages.unknown != 1 else noun[:-1] ~ ' carries' }} no date.</p>{% endif %}
+</figure>
+{%- endmacro %}
+
+{% macro spark(t, label) -%}
+{%- if t %}<span class="spark" title="{{ label }}"><svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><polygon class="spark-area" points="{{ t.area }}"/><polyline class="spark-line" points="{{ t.points }}" vector-effect="non-scaling-stroke"/></svg><span class="xs muted">{{ label }}</span></span>{% endif -%}
+{%- endmacro %}
+
+{#- A 100% bar of the corpus split by one dimension (level, severity); parts: present.composition. -#}
+{% macro composition(parts, caption) -%}
+{%- if parts %}<div class="compo"><p class="compo-cap">{{ caption }}</p>
+  <div class="compo-bar" role="img" aria-label="{{ caption }}: {% for p in parts %}{{ p.label }} {{ p.n|num }}{{ ', ' if not loop.last }}{% endfor %}">{% for p in parts %}<span class="{{ p.cls }} {{ p.w }}" title="{{ p.label }}: {{ p.n|num }} ({{ p.pct }}%)"></span>{% endfor %}</div>
+  <ul class="compo-key">{% for p in parts %}<li><a href="{{ p.href }}"><i class="{{ p.cls }}"></i>{{ p.label }} <b>{{ p.pct }}%</b></a></li>{% endfor %}</ul></div>{% endif -%}
+{%- endmacro %}

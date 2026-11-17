@@ -1,0 +1,26 @@
+# privacy-gate allowlist for sigharvest (scripts/privacy_gate.py, run by .github/workflows/ci.yml)
+# Format: <path-glob> <rule-id|glob|*> [re:<regex matched against the offending line>] -- <justification>
+# Keep entries narrow (prefer a re: filter) and always justified. Unused entries are reported.
+# Project-specific rules come from the terms file (SIGHARVEST_PRIVACY_TERMS); entries below name them only by glob.
+
+# --- the gate itself ------------------------------------------------------------
+scripts/privacy_gate.py * -- the gate contains the patterns it looks for
+
+# --- public Sigma taxonomy: product names used as logsource product values ------
+src/*/logsource_catalog.py vendor-* -- public Sigma logsource product names (taxonomy), not integrations
+src/*/normalize.py vendor-* -- logsource product alias normalisation (public Sigma taxonomy)
+
+# --- synthetic test data ----------------------------------------------------------
+tests/* secret-url-credentials re:(?i)user:[^@]*@(?:[\w-]+\.)*(example|invalid|test|host) -- redaction tests use fake credentials on reserved domains
+
+# --- git history ---------------------------------------------------------------------
+# Exactly these two commits (SHA prefix, author/committer identity only); every other commit is still checked.
+# Commit-scoped entries: commit:<sha-prefix, 7-40 hex>[*][:<path-glob>]; they never match tree findings.
+commit:0e6ca78def:* email-commit-author -- legacy commits; history not published
+commit:dc4e315ceb:* email-commit-author -- legacy commits; history not published
+
+# --- the organisation's own public addresses ------------------------------------
+# Only lines whose every address is on threat-hunting.eu (the project role address, security), or on threat-hunter.eu (the
+# previous address, still in older commits: history scans must keep passing); any other
+# address on the same line, a subdomain or a look-alike domain is still blocked.
+* email-real re:(?i)^(?:[^@]|@threat-hunt(?:ing|er)\.eu(?![\w-]|\.[\w-]))*$ -- the project's public role address (security, on threat-hunting.eu; threat-hunter.eu only in older commits)

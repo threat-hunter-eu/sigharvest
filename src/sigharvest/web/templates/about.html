@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, lic_class, copy_btn %}
+{% block title %}About & licences{% endblock %}
+{% block section %}about{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>About &amp; licences</h1><p class="lede">What sigharvest does with public Sigma rules, what each licence lets you do, and how to drive it from the terminal.</p></div></div>
+<div class="about-layout">
+  <nav aria-label="On this page"><ul class="toc">
+    <li><a href="#what">What sigharvest does</a></li><li><a href="#licences">Licence classes</a></li><li><a href="#syntax">Search syntax</a></li>
+    <li><a href="#cli">Command line</a></li><li><a href="#privacy">Data and privacy</a></li><li><a href="#versions">Versions</a></li><li><a href="#credits">Credits</a></li></ul></nav>
+  <div class="stack">
+    <section class="card" id="what" aria-labelledby="h-what"><div class="card-head"><h2 id="h-what">What sigharvest does</h2></div>
+      <div class="card-body prose">
+        <p>sigharvest clones public Sigma rule repositories, finds the same detection logic across them (one entry per logic, however many copies exist), and keeps where every copy came from and under which licence.</p>
+        <p>It validates every rule with pySigma and the Sigma schema, converts it to SIEM queries when the optional backends are installed, and lets you search, compare and export the result.</p>
+        <div class="flow" aria-label="How rules flow"><span>Sources (git)</span><i>&rarr;</i><span>De-duplicate</span><i>&rarr;</i><span>Validate &amp; convert</span><i>&rarr;</i><span>Index</span><i>&rarr;</i><span>Search &amp; export</span></div>
+        <p class="small muted mb-0">"Unique rule" = one detection logic. "Copies" = the same logic found in other files or repositories. "Variants" = versions of the same rule (same id or a <code>related:</code> link) whose detection differs.</p>
+      </div></section>
+
+    <section class="card" id="licences" aria-labelledby="h-lic"><div class="card-head"><h2 id="h-lic">Licence classes</h2></div>
+      <div class="table-wrap"><table class="rows">
+        <thead><tr><th scope="col">Class</th><th scope="col">Examples</th><th scope="col">What you may do</th><th scope="col">What Export does</th></tr></thead>
+        <tbody>{% for x in classes %}<tr><td>{{ lic_class(x.cls) }}</td><td>{{ x.examples }}</td><td>{{ x.meaning }}</td><td>{{ x.export }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      <div class="card-foot">A rule's licence is its own <code>license:</code> field, else the licence of the repository its canonical copy comes from. This is guidance, not legal advice.</div></section>
+
+    <section class="card" id="syntax" aria-labelledby="h-syn"><div class="card-head"><h2 id="h-syn">Search syntax</h2></div>
+      <div class="table-wrap"><table class="rows"><thead><tr><th scope="col">Type</th><th scope="col">Finds</th></tr></thead>
+        <tbody>{% for q, what in syntax %}<tr><td><a class="mono" href="/search?{{ {'q': q}|qs }}">{{ q }}</a></td><td>{{ what }}</td></tr>{% endfor %}</tbody></table></div>
+      <div class="card-foot">The filters on the left of Search do the same with clicks; every filter is part of the address, so a search can be bookmarked or shared.</div></section>
+
+    <section class="card" id="cli" aria-labelledby="h-cli"><div class="card-head"><h2 id="h-cli">Command line</h2><span class="xs muted"><code>sigharvest --help</code> lists everything</span></div>
+      <div class="card-body">{% for c, what in cli %}<div class="cmd"><code id="cli-{{ loop.index }}">{{ c }}</code><span class="xs muted">{{ what }}</span>{{ copy_btn('#cli-' ~ loop.index) }}</div>{% endfor %}</div></section>
+
+    <section class="card" id="privacy" aria-labelledby="h-priv"><div class="card-head"><h2 id="h-priv">Data and privacy</h2></div>
+      <div class="card-body prose"><ul>
+        <li>Everything runs on your machine. The only network calls are the git clones of your sources and, once, the MITRE ATT&amp;CK catalogue.</li>
+        <li>This interface listens on 127.0.0.1, has no accounts and sends nothing anywhere. It loads no fonts, scripts or styles from other sites.</li>
+        <li>Rule text comes from public repositories and is shown as text only; it is never run.</li></ul></div></section>
+
+    <section class="card" id="versions" aria-labelledby="h-ver"><div class="card-head"><h2 id="h-ver">Versions</h2></div>
+      <div class="card-body"><dl class="kv">
+        <dt>Workspace</dt><dd class="mono xs">{{ workspace }}</dd>
+        {% for name, ver in versions %}<dt>{{ name }}</dt><dd class="mono xs">{{ ver or 'not installed' }}</dd>{% endfor %}
+      </dl>{% for extra, names in backends_missing %}<p class="xs muted mt-4 mb-0">Missing backends ({{ names|join(', ') }}): <code>{{ install_command(extra) }}</code>{% if extra == 'convert-legacy' %} (pySigma 1; replaces <code>[convert]</code>){% endif %}.</p>{% endfor %}</div></section>
+
+    <section class="card" id="credits" aria-labelledby="h-cred"><div class="card-head"><h2 id="h-cred">Credits</h2></div>
+      <div class="card-body prose"><p>The rules are the work of their authors and of the SigmaHQ community and the other repositories listed under <a href="/sources">Sources</a>; their names stay in every rule and every export.</p>
+        <p>Conversion by <a href="https://github.com/SigmaHQ/pySigma" rel="noopener noreferrer">pySigma</a> and its backends. Fonts: Atkinson Hyperlegible Next and Mono (Braille Institute) and Archivo (Omnibus-Type), under the SIL Open Font License.</p>
+        <p>MITRE ATT&amp;CK&reg; data: {{ attack_copyright }} {{ attack_trademark }} <a href="{{ attack_terms_url }}" rel="noopener noreferrer">ATT&amp;CK terms of use</a>.</p>
+        <p>{{ not_affiliated }}</p>
+        <p class="mb-0">A rule of yours is listed wrongly, or you want it removed from the published packs and site? <a href="{{ issues_url }}" rel="noopener noreferrer">Open an issue</a>{% if contact_email %} or write to {{ contact_email }}{% endif %}.</p></div></section>
+  </div>
+</div>
+{% endblock %}

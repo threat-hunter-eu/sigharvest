@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ c.name }} - Sigma rule collection{% endblock %}
+{% block description %}{{ (c.description or ('A curated collection of ' ~ c['items']|length ~ ' Sigma rules: ' ~ c.name))|shorten(160) }}{% endblock %}
+{% block main %}
+<p class="crumbs"><a href="{{ base }}">rules</a> / collections</p>
+<h1>{{ c.name }}</h1>
+{% if c.description %}<p class="lead desc">{{ c.description }}</p>{% endif %}
+<p class="muted">{{ c['items']|length }} rule{{ '' if c['items']|length == 1 else 's' }}.</p>
+<table class="list">
+<thead><tr><th scope="col">rule</th><th scope="col">level</th><th scope="col" class="opt">log source</th><th scope="col">score</th><th scope="col" class="opt">note</th></tr></thead>
+<tbody>
+{% for it in c['items'] %}{% set r = it.row %}
+<tr>
+{% if r %}
+  <td><a href="{{ m.rule_href(lid_of[r.logic_hash], page_of.get(r.logic_hash)) }}">{{ r.title or 'Untitled rule' }}</a>
+    {% if it.state == 'updated' %}<span class="badge warn">changed upstream</span>{% endif %}
+    {% if r.yaml is none %}<span class="badge">link only</span>{% endif %}</td>
+  <td>{% if r.level %}<span class="badge lv-{{ r.level }}">{{ r.level }}</span>{% endif %}</td>
+  <td class="opt"><code>{{ r.logsource.product or '-' }}{% if r.logsource.category or r.logsource.service %} / {{ r.logsource.category or r.logsource.service }}{% endif %}</code></td>
+  <td class="mono">{{ (r.score or 0)|round|int }}</td>
+{% else %}
+  <td>{{ it.title or 'Untitled rule' }} <span class="badge bad">removed upstream</span></td><td></td><td class="opt"></td><td></td>
+{% endif %}
+  <td class="opt">{{ it.note or '' }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

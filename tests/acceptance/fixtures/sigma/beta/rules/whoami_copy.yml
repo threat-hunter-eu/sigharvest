@@ -1,0 +1,18 @@
+title: Whoami Started By Cmd (beta copy)
+id: 0b5e7d10-0001-4c3a-8e2f-000000000001
+status: experimental
+description: A renamed copy of the alpha whoami rule from another repository (same logic).
+author: Beta Fixture Author
+date: 2026-02-01
+tags:
+    - attack.discovery
+    - attack.t1033
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection:
+        ParentImage|endswith: '\cmd.exe'
+        Image|endswith: '\whoami.exe'
+    condition: selection
+level: medium

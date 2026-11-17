@@ -1,0 +1,17 @@
+title: Fixture DNS Query To Test Domain
+id: 6f8a1c2e-0003-4a5b-9c1d-000000000001
+status: experimental
+description: DNS query for a reserved test domain (acceptance fixture).
+author: Acceptance Fixture
+date: 2026-01-01
+tags:
+    - attack.command-and-control
+    - attack.t1071.004
+logsource:
+    category: dns_query
+    product: windows
+detection:
+    selection:
+        QueryName|endswith: '.fixture.invalid'
+    condition: selection
+level: low

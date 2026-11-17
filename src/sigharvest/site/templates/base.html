@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Sigma rules{% endblock %} | sigharvest</title>
+<meta name="description" content="{% block description %}Sigma detection rules collected from public repositories, deduplicated, validated and ranked by sigharvest.{% endblock %}">
+<link rel="canonical" href="{{ canonical }}">
+<meta property="og:type" content="{% block ogtype %}website{% endblock %}">
+<meta property="og:title" content="{{ self.title() }}">
+<meta property="og:description" content="{{ self.description() }}">
+<meta property="og:url" content="{{ canonical }}">
+<meta name="theme-color" content="#07090d">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="sigharvest-base" content="{{ base }}">
+<link rel="icon" href="{{ base }}static/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="application/atom+xml" href="{{ base }}feed.xml" title="New and changed Sigma rules">
+<link rel="stylesheet" href="{{ base }}static/site.css">
+{% block robots %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="logo" href="{{ base }}" aria-label="Home"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="13" cy="13" r="9" fill="none" stroke="#39ff9c" stroke-width="3"/><path d="M20 20l9 9" stroke="#39ff9c" stroke-width="3.5" stroke-linecap="round"/></svg><span>sigharvest<em> rules</em></span></a>
+  <nav aria-label="Rules site">
+    <a href="{{ base }}"{% if rel == 'index.html' %} aria-current="page"{% endif %}>rules</a>
+    <a href="{{ base }}#collections">collections</a>
+    <a href="{{ base }}attribution.html"{% if rel == 'attribution.html' %} aria-current="page"{% endif %}>attribution</a>
+  </nav>
+</div></header>
+<main id="main" class="wrap">
+{% block main %}{% endblock %}
+</main>
+<footer><div class="wrap">
+  <p>Rules &copy; their authors, under the licence stated on each rule. Rules without a stated licence are shown as metadata and a link to their source only. <a href="{{ base }}attribution.html">Attribution and licences</a>.</p>
+  {% if attack_version %}<p>Technique names from MITRE ATT&amp;CK&reg; v{{ attack_version }}. {{ attack_copyright }} {{ attack_trademark }} <a href="{{ attack_terms_url }}">ATT&amp;CK terms of use</a>.</p>{% endif %}
+  <p>{{ not_affiliated }} Corrections and removal requests: <a href="{{ issues_url }}">open an issue</a>{% if contact_email %} or write to {{ contact_email }}{% endif %}.</p>
+  <p>Built {{ built[:10] }} with <a href="{{ repo_url }}">sigharvest</a> {{ sigharvest_version }}{% if release %} from the release of {{ release[:10] }}{% endif %}. Scores and badges are ranking aids, not verdicts: test rules in your environment.</p>
+</div></footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

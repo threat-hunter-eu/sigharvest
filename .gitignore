@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+/workspace/
+*.db
+*.db-wal
+*.db-shm
+/out/
+.mypy_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+# workspace data, when a workspace is created inside the checkout
+/data/
+/corpus/
+/reports/
+/discovery/
+*:Zone.Identifier
+/.ws/
+/.out/

@@ -1,0 +1,36 @@
+# Weekly, grouped update PRs. Actions stay pinned by full commit SHA; Dependabot rewrites the SHA and the
+# `# vX.Y.Z` comment next to it (keep that comment the exact tag). The uv version passed to setup-uv
+# (`version:`) is not tracked: bump it by hand together with setup-uv, to a version that release knows.
+#
+# The pySigma family (pysigma, pysigma-backend-*, pysigma-pipeline-*) is ignored: [convert] (pySigma 2) and
+# [convert-legacy] (pySigma 1.x) are mutually exclusive extras ([tool.uv] conflicts). Dependabot raises one
+# requirement for every split at once, so a backend or pipeline bump that needs pySigma 2 can never resolve for
+# [convert-legacy] (dependency_file_not_resolvable). Bump those by hand, keeping both extras coherent:
+#   uv lock --upgrade-package <name>, then pytest and acceptance with both extras.
+# Dependabot commits carry a bot e-mail trailer the privacy gate blocks: apply a bump with the repository
+# identity (uv lock --upgrade-package ...) and close the PR, never merge it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: uv # pyproject.toml + uv.lock
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: 'pysigma'
+      - dependency-name: 'pysigma-*'
+    cooldown:
+      default-days: 7

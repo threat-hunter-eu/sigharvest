@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, crumbs, lvl, lic, logsource, val %}
+{% block title %}Variants of {{ anchor.title or '(untitled)' }}{% endblock %}
+{% block section %}search{% endblock %}
+{% block content %}
+{{ crumbs([('Search', '/search'), (anchor.title or '(untitled)', '/rule/' ~ anchor.logic_hash[:16]), ('Variants', '')]) }}
+<div class="page-head"><div><h1>Variants <span class="count">{{ members|length }}</span></h1>
+  <p class="lede">Versions of the same rule: they share a rule id, a <code>related:</code> link or an equivalent detection on the same log source. The best-scored is first.</p></div>
+  <div class="actions"><a class="btn" href="/export?{{ {'scope': 'selected'}|qs }}{% for x in members[:200] %}&amp;h={{ x.logic_hash }}{% endfor %}">{{ icon('export') }}Export all variants</a></div></div>
+{% if truncated %}<div class="notice" role="status">{{ icon('about') }}<p>Only the first {{ members|length }} variants are shown.</p></div>{% endif %}
+<section class="card"><div class="table-wrap"><table class="rows">
+  <thead><tr><th scope="col">Rule</th><th scope="col">Canonical source</th><th scope="col">Level</th><th scope="col" class="num">Copies</th><th scope="col"><span class="sr-only">Compare</span></th></tr></thead>
+  <tbody>{% for x in members %}
+    <tr{% if x.logic_hash == anchor.logic_hash %} class="is-selected"{% endif %}><td><a href="/rule/{{ x.logic_hash[:16] }}"><b>{{ x.title or '(untitled)' }}</b></a>{{ val(x.validation) }}<span class="sub mono">{{ logsource(x) }} &middot; {{ x.logic_hash[:10] }}</span></td>
+      <td>{{ x.canonical_source }}</td><td>{{ lvl(x.level) }}</td><td class="num">{{ x.copies|num }}</td>
+      <td>{% if x.logic_hash != anchor.logic_hash %}<a href="/compare?{{ {'a': anchor.logic_hash[:16], 'b': x.logic_hash[:16]}|qs }}">Compare</a>{% else %}<span class="muted small">this rule</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div></section>
+{% endblock %}

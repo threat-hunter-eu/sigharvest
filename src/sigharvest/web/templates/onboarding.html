@@ -1,0 +1,14 @@
+{% from "_ui.html" import icon, cmd %}
+<div class="onboard">
+  <h1 class="hero-title">Welcome to sigharvest</h1>
+  <p class="lede">sigharvest collects public Sigma rules from GitHub, removes duplicates and lets you search and export them. Your index is empty, so let's fill it. It takes about 10 minutes the first time.</p>
+  <ol class="steps">
+    <li class="done"><div><b>Install sigharvest</b> <span class="muted small">done, you are looking at it</span></div></li>
+    <li class="done"><div><b>Choose your sources</b> <span class="muted small">done by <code>sigharvest init</code>; see them on <a href="/sources">Sources</a></span></div></li>
+    <li><div><b>Download and index the rules</b> <span class="muted small">clones each repository on your machine; run it again any time to refresh</span>
+      {{ cmd('c-update', 'sigharvest update') }}</div></li>
+    <li><div><b>Reload this page</b> <span class="muted small">the overview, search and coverage pages fill in automatically</span></div></li>
+  </ol>
+  <p class="after">Want only the SigmaHQ rules? Start a workspace with <code>sigharvest init --preset sigmahq</code>. SIEM queries need the optional backends:</p>
+  {{ cmd('c-convert', install_command()) }}
+</div>

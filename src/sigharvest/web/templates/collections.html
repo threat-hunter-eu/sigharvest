@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, crumbs %}
+{% block title %}Collections{% endblock %}
+{% block section %}export{% endblock %}
+{% block content %}
+{{ crumbs([('Export', '/export'), ('Collections', '')]) }}
+<div class="page-head"><div><h1>Collections <span class="count">{{ rows|length }}</span></h1><p class="lede">Saved sets of rules to export as a unit. When a rule changes upstream, its collection follows it.</p></div></div>
+{% if params.error %}<div class="notice notice-bad" role="alert">{{ icon('about') }}<p>{{ params.error }}</p></div>{% endif %}
+<div class="rule-layout">
+  <section class="card">
+    {% if rows %}<div class="table-wrap"><table class="rows">
+      <thead><tr><th scope="col">Name</th><th scope="col" class="num">Rules</th><th scope="col">Description</th><th scope="col">Created</th></tr></thead>
+      <tbody>{% for c, n in rows %}<tr><td><a href="{{ col_url(c.name) }}"><b>{{ c.name }}</b></a></td><td class="num">{{ n|num }}</td><td>{{ c.display_description }}</td><td>{{ c.created_at.strftime('%Y-%m-%d') }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="empty"><h2>No collections yet</h2><p>Create one here or from the terminal: <code>sigharvest collection --help</code>.</p></div>{% endif %}
+  </section>
+  <aside class="card side-card"><div class="card-head"><h2>New collection</h2></div>
+    <form class="card-body stack" action="/collections" method="post">
+      <label class="field">Name<input type="text" name="name" required maxlength="80" pattern="[A-Za-z0-9][A-Za-z0-9 ._\-]*" placeholder="e.g. ransomware"></label>
+      <label class="field">Description (optional)<input type="text" name="description" maxlength="500"></label>
+      <button class="btn btn-primary" type="submit">Create collection</button>
+    </form></aside>
+</div>
+{% endblock %}

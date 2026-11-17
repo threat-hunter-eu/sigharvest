@@ -1,0 +1,479 @@
+name: Nightly build and release
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      force_release:
+        description: Publish a release even if the content id did not change.
+        type: boolean
+        default: false
+      cold_start:
+        description: Ignore the cache (fresh clones and a new DB).
+        type: boolean
+        default: false
+
+permissions: {}
+
+# One data pipeline at a time; never cancel a run that may be publishing.
+concurrency:
+  group: sigharvest-data
+  cancel-in-progress: false
+
+env:
+  SIGHARVEST_HOME: ${{ github.workspace }}/.ws
+  PYTHON_VERSION: '3.12'
+  RELEASE_DIR: ${{ github.workspace }}/.out/release
+  PREV_DIR: ${{ github.workspace }}/.out/previous
+  # Where the rule packs are published: the public data repository (owner/name, e.g. threat-hunter-eu/sigharvest-rules)
+  # when the repo variable SIGHARVEST_RULES_REPO is set, otherwise this repository (the behaviour before the split).
+  # docs/automation.md#rules-repository
+  RULES_REPO: ${{ vars.SIGHARVEST_RULES_REPO || github.repository }}
+
+jobs:
+  # Parses untrusted third-party YAML: read-only token, no persisted credentials.
+  build:
+    if: >-
+      vars.SIGHARVEST_AUTOMATION_ENABLED == 'true' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch || 'main')
+    runs-on: ubuntu-latest
+    # Full corpus (curated + extended, about 1,200 sources). A cold start does not fit one run: `update --time-budget`
+    # stops starting fetches and conversions in time, the progress is cached, and the next night continues
+    # (docs/automation.md#full-corpus-runtime). 300 = the job limit we allow ourselves (GitHub's is 360).
+    timeout-minutes: 300
+    permissions:
+      contents: read
+    outputs:
+      partial: ${{ steps.update.outputs.partial }}
+      changed: ${{ steps.decide.outputs.changed }}
+      content_id: ${{ steps.decide.outputs.content_id }}
+      previous_tag: ${{ steps.previous.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: false # this job builds release files: no uv cache restored from other runs
+
+      # [convert]: `update --convert` converts every rule with the pySigma backends (release metadata per backend).
+      - run: uv sync --locked --no-dev --extra convert
+
+      - id: date
+        run: |
+          d=$(date -u +%F)
+          echo "date=$d" >> "$GITHUB_OUTPUT"
+          # Reproducible files: every file in a release carries the run date at 00:00 UTC.
+          echo "epoch=$(date -u -d "$d" +%s)" >> "$GITHUB_OUTPUT"
+
+      # Workspace layout: $SIGHARVEST_HOME/sources.yaml, data/sigharvest.db, data/cache/git/ (bare clones).
+      # Key per day; restore-keys fall back to the newest earlier snapshot (incremental git fetch).
+      - name: Restore workspace (git clones and DB under data)
+        id: cache
+        if: ${{ !inputs.cold_start }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .ws/data
+            !.ws/data/logs
+          key: sigharvest-ws-v1-${{ runner.os }}-${{ steps.date.outputs.date }}
+          restore-keys: |
+            sigharvest-ws-v1-${{ runner.os }}-
+
+      # --time-budget: no fetch or conversion starts after 150 minutes; validation, index, gates and the report
+      # still run, and the run commits what it did (sources never or least recently synced go first next time).
+      # --convert-scope canonical: only the copy of each logic that the index and the release files read.
+      # The step timeout is a last resort below the job's, so a run that is still too slow checkpoints and caches
+      # its progress below. `rc` stays empty when the step is killed (timeout, cancellation). `partial=true`: the
+      # budget left sources unsynced, so the corpus is not complete yet: no release tonight, progress is cached.
+      - name: Update (fetch, ingest, validate, convert, index)
+        id: update
+        timeout-minutes: 270
+        run: |
+          set +e
+          uv run sigharvest update \
+            --convert \
+            --convert-scope canonical \
+            --time-budget 150 \
+            --sources sources/curated.yaml \
+            --sources sources/extended.yaml \
+            --workers "$(nproc)" \
+            --allow-failures \
+            --max-failed-sources 10 \
+            --report-file "$RUNNER_TEMP/update-report.json"
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          deferred=$(jq -r '.counts.sources_deferred // 0' "$RUNNER_TEMP/update-report.json" 2>/dev/null || echo 0)
+          partial=false
+          if [ "$rc" = 0 ] && [ "${deferred:-0}" != 0 ]; then partial=true; fi
+          echo "partial=$partial" >> "$GITHUB_OUTPUT"
+          echo "sources left for the next run: ${deferred:-0} (partial=$partial)"
+          exit "$rc"
+
+      # Read-only, from the rules repository (public: GITHUB_TOKEN can read it; a private or missing one fails here).
+      - name: Previous release (for changes.json and change detection)
+        id: previous
+        if: steps.update.outputs.partial != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ vars.SIGHARVEST_RULES_REPO || github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$PREV_DIR"
+          tag=$(gh release list --limit 100 --exclude-drafts --json tagName \
+                --jq '[.[] | select(.tagName | startswith("rules-"))][0].tagName // ""')
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ -n "$tag" ]; then
+            gh release download "$tag" -D "$PREV_DIR" -p manifest.json -p index.json.gz
+          else
+            echo "no previous rules-* release: first publication"
+          fi
+
+      - name: Build release files
+        if: steps.update.outputs.partial != 'true'
+        env:
+          BUILD_EPOCH: ${{ steps.date.outputs.epoch }}
+        run: |
+          set -euo pipefail
+          prev=()
+          [ -f "$PREV_DIR/index.json.gz" ] && prev=(--previous "$PREV_DIR")
+          uv run sigharvest release build "$RELEASE_DIR" \
+            --licence-class permissive --licence-class copyleft \
+            --build-epoch "$BUILD_EPOCH" "${prev[@]}"
+          ls -la "$RELEASE_DIR"
+          (cd "$RELEASE_DIR" && sha256sum --check SHA256SUMS)
+
+      - name: Decide whether content changed
+        id: decide
+        if: steps.update.outputs.partial != 'true'
+        env:
+          FORCE: ${{ inputs.force_release || false }}
+        run: |
+          set -euo pipefail
+          new=$(jq -r '.content_id' "$RELEASE_DIR/manifest.json")
+          old=""
+          [ -f "$PREV_DIR/manifest.json" ] && old=$(jq -r '.content_id' "$PREV_DIR/manifest.json")
+          changed=false
+          if [ "$new" != "$old" ] || [ "$FORCE" = "true" ]; then changed=true; fi
+          echo "content_id=$new" >> "$GITHUB_OUTPUT"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          {
+            echo "## sigharvest nightly"
+            echo "- content id: \`$new\` (previous: \`${old:-none}\`) -> publish: **$changed**"
+            jq -r '"- rules: \(.counts.rules), with YAML: \(.counts.with_yaml // 0), metadata only: \(.counts.metadata_only // 0)"' "$RELEASE_DIR/manifest.json"
+            jq -r '"- changes: +\(.new | length) ~\(.changed | length) -\(.removed | length)"' "$RELEASE_DIR/changes.json"
+            echo
+            runs=("$SIGHARVEST_HOME"/reports/runs/*.md) # sorted by name = by start time
+            latest=${runs[-1]}
+            if [ -f "$latest" ]; then cat "$latest"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A cold start split over several nights: say so, and publish nothing until every source was synced once.
+      - name: Partial corpus summary
+        if: steps.update.outputs.partial == 'true'
+        run: |
+          {
+            echo "## sigharvest nightly: partial corpus (time budget)"
+            jq -r '"- sources left for the next run: \(.counts.sources_deferred), rules not converted yet: \(.counts.conversions_deferred // 0), unique logic so far: \(.counts.unique_logic)"' "$RUNNER_TEMP/update-report.json"
+            echo "- no release tonight; the cached progress is resumed by the next run"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Checkpoint SQLite before caching
+        if: always() && hashFiles('.ws/data/sigharvest.db') != ''
+        run: >-
+          uv run --no-sync python -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]);
+          c.execute('PRAGMA wal_checkpoint(TRUNCATE)'); c.close()" "$SIGHARVEST_HOME/data/sigharvest.db"
+
+      # After a successful update (gates passed), even when a later step fails: the snapshot of the day.
+      - name: Save workspace
+        if: always() && steps.update.outcome == 'success' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .ws/data
+            !.ws/data/logs
+          key: sigharvest-ws-v1-${{ runner.os }}-${{ steps.date.outputs.date }}
+
+      # An update that was killed (step timeout, cancellation) or stopped on an error keeps its progress (clones,
+      # ingested documents, committed conversion batches) under a run-specific key. Restore takes the newest
+      # `sigharvest-ws-v1-<os>-` entry, so the next night resumes from it, and the next successful run's snapshot
+      # supersedes it. A failed gate (exit 1) is not saved: its last good snapshot stays the newest.
+      - name: Save partial progress
+        if: >-
+          always() && steps.update.outcome != 'success' && steps.update.outcome != 'skipped' &&
+          steps.update.outputs.rc != '1' && hashFiles('.ws/data/sigharvest.db') != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .ws/data
+            !.ws/data/logs
+          key: sigharvest-ws-v1-${{ runner.os }}-${{ steps.date.outputs.date }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - if: steps.update.outputs.partial != 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: ${{ env.RELEASE_DIR }}/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: update-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/update-report.json
+            .ws/data/logs/
+            .ws/reports/runs/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # Keyless signing writes a PUBLIC Sigstore (Rekor) log entry naming the repository, workflow, run and commit, and
+  # it cannot be removed. Fail-closed gate: the job only asks for the variable here; the step below asks the API
+  # whether the repository is public and signs only on an explicit `"private": false` answer. Any error, a missing
+  # field or a private repository -> no signature (docs/automation.md#signing). Separate job, so `id-token: write`
+  # is never granted to the job that holds `contents: write`.
+  sign:
+    needs: build
+    if: needs.build.outputs.changed == 'true' && vars.SIGHARVEST_SIGNING_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # the visibility lookup (repos/{owner}/{repo}) and nothing else
+      id-token: write # keyless cosign; used only after the visibility gate passed
+    outputs:
+      signed: ${{ steps.sign.outcome == 'success' }}
+    steps:
+      # Both repositories: this one (named in the Rekor entry) and the rules repository (where the signature goes).
+      - name: Repository visibility (fail-closed, this repository and the rules repository)
+        id: vis
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          public=true
+          for repo in "$GITHUB_REPOSITORY" "$RULES_REPO"; do
+            private=$(gh api "repos/$repo" --jq '.private' 2>/dev/null) || private=''
+            [ "$private" = "false" ] || public=false
+            echo "$repo: API private=${private:-<error>}"
+          done
+          echo "public=$public" >> "$GITHUB_OUTPUT"
+          echo "repositories public: $public"
+
+      - if: steps.vis.outputs.public == 'true' && vars.SIGHARVEST_SIGNING_ENABLED == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: release
+
+      - if: steps.vis.outputs.public == 'true' && vars.SIGHARVEST_SIGNING_ENABLED == 'true'
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: 'v3.1.4'
+
+      - name: Sign SHA256SUMS (keyless cosign; verified-public repository and SIGHARVEST_SIGNING_ENABLED only)
+        id: sign
+        if: steps.vis.outputs.public == 'true' && vars.SIGHARVEST_SIGNING_ENABLED == 'true'
+        working-directory: release
+        run: |
+          set -euo pipefail
+          sha256sum --check SHA256SUMS
+          cosign sign-blob --yes --bundle SHA256SUMS.sigstore.json SHA256SUMS
+
+      - if: steps.sign.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-signature
+          path: release/SHA256SUMS.sigstore.json
+          if-no-files-found: error
+          retention-days: 7
+
+  # Publishes into the rules repository (RULES_REPO). Cross-repository: a GitHub App installation token, minted here
+  # only, after every gate, limited to contents:write on that one repository and valid for one hour. The App key is a
+  # secret of the `rules-publish` environment (deployment branches: main only), so no other job or branch can read
+  # it. Same repository (SIGHARVEST_RULES_REPO unset): GITHUB_TOKEN as before. docs/automation.md#rules-repository
+  publish:
+    needs: [build, sign]
+    if: >-
+      always() && needs.build.result == 'success' && needs.build.outputs.changed == 'true' &&
+      (needs.sign.result == 'success' || needs.sign.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: rules-publish
+    permissions:
+      contents: write # create releases, delete old ones (only used when the rules repository is this repository)
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    env:
+      GH_REPO: ${{ vars.SIGHARVEST_RULES_REPO || github.repository }}
+      KEEP_RELEASES: ${{ vars.SIGHARVEST_KEEP_RELEASES || '30' }}
+      KEEP_MONTHLY: ${{ vars.SIGHARVEST_KEEP_MONTHLY || '12' }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: release
+
+      - name: Verify checksums
+        working-directory: release
+        run: sha256sum --check SHA256SUMS
+
+      # Only present when `sign` signed (verified-public repositories with signing enabled).
+      - if: needs.sign.outputs.signed == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-signature
+          path: release
+
+      - name: Rules repository owner and name
+        id: dest
+        run: |
+          set -euo pipefail
+          [[ "$GH_REPO" =~ ^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$ ]] || { echo "::error::bad SIGHARVEST_RULES_REPO: $GH_REPO"; exit 1; }
+          cross=true
+          [ "$GH_REPO" != "$GITHUB_REPOSITORY" ] || cross=false
+          {
+            echo "owner=${GH_REPO%%/*}"
+            echo "name=${GH_REPO#*/}"
+            echo "cross=$cross"
+          } >> "$GITHUB_OUTPUT"
+          echo "publishing to $GH_REPO"
+
+      - name: Token for the rules repository (GitHub App; contents write on that repository only)
+        id: app
+        if: steps.dest.outputs.cross == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.SIGHARVEST_RULES_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SIGHARVEST_RULES_APP_KEY }}
+          owner: ${{ steps.dest.outputs.owner }}
+          repositories: ${{ steps.dest.outputs.name }}
+          permission-contents: write
+
+      - name: Pick tag rules-YYYY-MM-DD (suffix .N on a same-day rerun)
+        id: tag
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+        run: |
+          set -euo pipefail
+          base="rules-$(date -u +%F)"
+          tag="$base"; n=1
+          while gh release view "$tag" >/dev/null 2>&1; do n=$((n+1)); tag="$base.$n"; done
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # build-info.json is written here, outside SHA256SUMS (informational): which tool commit and run built the files.
+      # The rules repository's pages.yml builds the site with that tool commit after checking it is on main.
+      - name: Publish release (draft first, then public, so a half-uploaded release is never visible)
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          CROSS: ${{ steps.dest.outputs.cross }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg sha "$GITHUB_SHA" --arg run "$RUN_URL" --arg tag "$TAG" \
+            '{format: 1, tool_repo: $repo, tool_commit: $sha, workflow_run: $run, tag: $tag}' > build-info.json
+          # Same repository: tag the built commit. Rules repository: its default branch (the tool commit is not there).
+          target=()
+          [ "$CROSS" = "true" ] || target=(--target "$GITHUB_SHA")
+          gh release create "$TAG" release/* build-info.json --draft "${target[@]}" \
+            --title "Sigma rules $TAG" --notes-file release/RELEASE_NOTES.md
+          gh release edit "$TAG" --draft=false --latest
+          echo "- published \`$TAG\` to \`$GH_REPO\`: https://github.com/$GH_REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      # Keeps the newest KEEP_RELEASES releases plus the first release of each of the newest KEEP_MONTHLY months;
+      # deletes only rules-YYYY-MM-DD[.N] tags (anything else in the repository is left alone).
+      - name: Prune old releases
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+        run: |
+          set -euo pipefail
+          gh release list --limit 400 --exclude-drafts --json tagName \
+            | jq -r --argjson keep "$KEEP_RELEASES" --argjson months "$KEEP_MONTHLY" '
+                [.[].tagName | select(test("^rules-[0-9]{4}-[0-9]{2}-[0-9]{2}(\\.[0-9]+)?$"))] as $all
+                | ($all[:$keep]) as $recent
+                | ([$all | group_by(.[6:13])[] | min] | sort | reverse | .[:$months]) as $monthly
+                | ($all - $recent - $monthly)[]' \
+            | while read -r old; do echo "delete $old"; gh release delete "$old" --yes --cleanup-tag; done
+
+  # Pages of this repository only while the packs are published here; with a rules repository, its own pages.yml
+  # runs on the `release: published` event (App-token releases fire it, GITHUB_TOKEN ones do not).
+  pages:
+    needs: publish
+    if: >-
+      always() && needs.publish.result == 'success' && vars.SIGHARVEST_PAGES_ENABLED == 'true' &&
+      (vars.SIGHARVEST_RULES_REPO == '' || vars.SIGHARVEST_RULES_REPO == github.repository)
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      tag: ${{ needs.publish.outputs.tag }}
+
+  # Keeps the repo "active" (scheduled workflows are disabled after 60 days without activity)
+  # and gives a browsable history of counts. Commits to a separate branch so main stays clean.
+  keepalive:
+    needs: [build, publish]
+    # Content changed -> only after a successful publish (a failed `sign` skips publish); unchanged -> heartbeat.
+    # A partial night (cold start in progress) has no release files to take the stats from.
+    if: >-
+      always() && needs.build.result == 'success' && needs.build.outputs.partial != 'true' &&
+      (needs.publish.result == 'success' || needs.build.outputs.changed != 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      STATS_BRANCH: ${{ vars.SIGHARVEST_STATS_BRANCH || 'data' }}
+      HEARTBEAT_DAYS: '25'
+      CHANGED: ${{ needs.build.outputs.changed }}
+      TAG: ${{ needs.publish.outputs.tag }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: release
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: repo
+          fetch-depth: 1
+          persist-credentials: false # the token goes to the fetch/push below only
+
+      - name: Commit stats to the stats branch
+        working-directory: repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          gitauth=(-c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth")
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git "${gitauth[@]}" fetch --depth 1 origin "$STATS_BRANCH" 2>/dev/null; then
+            git switch -C "$STATS_BRANCH" FETCH_HEAD
+            last=$(git log -1 --format=%ct)
+          else
+            git switch --orphan "$STATS_BRANCH"
+            git rm -rfq . || true
+            last=0
+          fi
+          mkdir -p stats
+          cp ../release/stats.json stats/latest.json
+          if [ "$CHANGED" = "true" ]; then
+            jq -c --arg tag "$TAG" '. + {tag: $tag}' ../release/stats.json >> stats/history.jsonl
+          fi
+          age_days=$(( ($(date +%s) - last) / 86400 ))
+          git add stats
+          if git diff --cached --quiet && [ "$age_days" -lt "$HEARTBEAT_DAYS" ]; then
+            echo "nothing to commit (last commit ${age_days}d ago)"; exit 0
+          fi
+          git commit -q --allow-empty -m "stats: $(date -u +%F) ${TAG:-no release} [skip ci]"
+          git "${gitauth[@]}" push origin "HEAD:$STATS_BRANCH"

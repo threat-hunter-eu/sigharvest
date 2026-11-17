@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, crumbs, lvl, logsource %}
+{% block title %}{{ c.name }} - Collections{% endblock %}
+{% block section %}export{% endblock %}
+{% block content %}
+{{ crumbs([('Export', '/export'), ('Collections', '/collections'), (c.name, '')]) }}
+<div class="page-head">
+  <div><h1>{{ c.name }} <span class="count">{{ total|num }} rules</span></h1>{% if c.display_description %}<p class="lede">{{ c.display_description }}</p>{% endif %}</div>
+  <div class="actions"><a class="btn" href="/search?{{ {'collection': c.name}|qs }}">{{ icon('search') }}Open in search</a>
+    {% for fmt in formats %}<a class="btn{{ ' btn-primary' if fmt == 'zip' }}" href="{{ col_url(c.name) }}/export?format={{ fmt }}">{{ icon('export') }}{{ 'YAML (.zip)' if fmt == 'zip' else fmt|upper }}</a>{% endfor %}</div>
+</div>
+{% if params.error %}<div class="notice notice-bad" role="alert">{{ icon('about') }}<p>{{ params.error }}</p></div>{% endif %}
+{% if counts.updated %}<div class="notice notice-warn" role="status">{{ icon('changes') }}<p><b>{{ counts.updated }} rules changed upstream.</b> Exports already use the current rules.</p>
+  <form action="{{ col_url(c.name) }}/update" method="post"><button class="btn btn-sm" type="submit">Follow the changes</button></form></div>{% endif %}
+{% if counts.missing %}<div class="notice notice-warn" role="status">{{ icon('about') }}<p>{{ counts.missing }} rules are no longer in any source. They stay listed in case they come back.</p></div>{% endif %}
+<section class="card">
+  {% if rows %}<div class="table-wrap"><table class="rows">
+    <thead><tr><th scope="col">Rule</th><th scope="col">Level</th><th scope="col">Log source</th><th scope="col"></th></tr></thead>
+    <tbody>{% for r in rows %}{% set g = r.group %}
+      <tr><td>{% if g %}<a href="/rule/{{ g.logic_hash[:16] }}"><b>{{ g.title or '(untitled)' }}</b></a>{% else %}{{ r.item.title or '(untitled)' }}{% endif %}
+          {% if r.state == 'updated' %} <span class="badge val-warnings">updated upstream</span>{% elif r.state == 'missing' %} <span class="badge val-invalid">missing</span>{% endif %}
+          {% if r.item.note %}<span class="sub">{{ r.item.note }}</span>{% endif %}</td>
+        <td>{% if g %}{{ lvl(g.level) }}{% endif %}</td><td class="mono">{% if g %}{{ logsource(g) }}{% endif %}</td>
+        <td><form action="{{ col_url(c.name) }}/remove" method="post"><input type="hidden" name="key" value="{{ r.item.logic_hash }}"><button class="btn btn-quiet btn-sm" type="submit">Remove</button></form></td></tr>{% endfor %}
+    </tbody></table></div>
+  {% if pages > 1 %}<nav class="pager" aria-label="Pages">{% if page > 1 %}<a class="btn btn-sm" href="?{{ dict(page=page-1)|qs }}">Previous</a>{% endif %}<span>Page {{ page }} of {{ pages }}</span>{% if page < pages %}<a class="btn btn-sm" href="?{{ dict(page=page+1)|qs }}">Next</a>{% endif %}</nav>{% endif %}
+  {% else %}<div class="empty"><h2>This collection is empty</h2><p>Add rules from the terminal: <code>sigharvest collection --help</code>.</p></div>{% endif %}
+</section>
+{% endblock %}

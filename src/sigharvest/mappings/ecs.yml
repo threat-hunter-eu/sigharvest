@@ -1,0 +1,84 @@
+# Elastic Common Schema -> Sigma field names (Elastic Agent, Winlogbeat 8, Filebeat, Auditbeat).
+# For each Sigma field the first event path that exists is used. Paths are dotted and case-insensitive.
+timestamp_field: '@timestamp'
+fields:
+  Image: [process.executable]
+  OriginalFileName: [process.pe.original_file_name]
+  CommandLine: [process.command_line]
+  CurrentDirectory: [process.working_directory]
+  ProcessId: [process.pid]
+  ProcessGuid: [process.entity_id]
+  IntegrityLevel: [winlog.event_data.IntegrityLevel, process.Ext.token.integrity_level_name]
+  Description: [process.pe.description]
+  Product: [process.pe.product]
+  Company: [process.pe.company]
+  Hashes: [winlog.event_data.Hashes]
+  md5: [process.hash.md5, file.hash.md5]
+  sha1: [process.hash.sha1, file.hash.sha1]
+  sha256: [process.hash.sha256, file.hash.sha256]
+  ParentImage: [process.parent.executable]
+  ParentCommandLine: [process.parent.command_line]
+  ParentProcessId: [process.parent.pid]
+  ParentProcessGuid: [process.parent.entity_id]
+  User: [user.name]
+  SubjectUserName: [user.name]
+  TargetUserName: [user.target.name, winlog.event_data.TargetUserName]
+  LogonType: [winlog.logon.type, winlog.event_data.LogonType]
+  Computer: [host.name, winlog.computer_name]
+  EventID: [event.code, winlog.event_id]
+  Channel: [winlog.channel]
+  Provider_Name: [winlog.provider_name]
+  TargetFilename: [file.path]
+  ImageLoaded: [dll.path]
+  Signed: [dll.code_signature.exists, file.code_signature.exists]
+  Signature: [dll.code_signature.subject_name, file.code_signature.subject_name]
+  TargetObject: [registry.path]
+  Details: [registry.data.strings]
+  EventType: [winlog.event_data.EventType]
+  DestinationIp: [destination.ip]
+  DestinationPort: [destination.port]
+  DestinationHostname: [destination.domain]
+  SourceIp: [source.ip]
+  SourcePort: [source.port]
+  Protocol: [network.transport]
+  Initiated: [network.direction]
+  QueryName: [dns.question.name]
+  QueryResults: [dns.answers.data]
+  PipeName: [winlog.event_data.PipeName]
+  ScriptBlockText: [powershell.file.script_block_text]
+  Payload: [winlog.event_data.Payload]
+  ServiceName: [service.name, winlog.event_data.ServiceName]
+  ImagePath: [winlog.event_data.ImagePath]
+  TaskName: [winlog.event_data.TaskName]
+  SourceImage: [process.executable]
+  TargetImage: [winlog.event_data.TargetImage]
+  GrantedAccess: [winlog.event_data.GrantedAccess]
+  CallTrace: [winlog.event_data.CallTrace]
+  # web server / proxy
+  c-uri: [url.original, url.path]
+  cs-uri-query: [url.query]
+  cs-method: [http.request.method]
+  sc-status: [http.response.status_code]
+  c-useragent: [user_agent.original]
+  cs-host: [url.domain, host.name]
+  c-ip: [source.ip, client.ip]
+  # linux
+  exe: [process.executable]
+  comm: [process.name]
+  a0: [process.args]
+
+# ECS network.direction says egress/ingress (or outbound/inbound); Sysmon's Initiated says 'true'/'false'.
+values:
+  Initiated: {egress: "true", outbound: "true", ingress: "false", inbound: "false"}
+
+# Per rule category: file.path / file.name are the loaded image or the pipe only for those rules.
+categories:
+  image_load:
+    fields:
+      ImageLoaded: [dll.path, file.path]
+  driver_load:
+    fields:
+      ImageLoaded: [file.path, dll.path]
+  pipe_created:
+    fields:
+      PipeName: [file.name, winlog.event_data.PipeName]

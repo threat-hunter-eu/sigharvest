@@ -1,0 +1,20 @@
+title: Fixture Shadow File Read
+id: 0b5e7d10-0003-4c3a-8e2f-000000000001
+status: test
+description: A process reads /etc/shadow (acceptance fixture).
+author: Beta Fixture Author
+date: 2026-02-01
+tags:
+    - attack.credential-access
+    - attack.t1003.008
+logsource:
+    product: linux
+    category: process_creation
+detection:
+    selection:
+        CommandLine|contains: '/etc/shadow'
+        Image|endswith:
+            - '/cat'
+            - '/less'
+    condition: selection
+level: critical

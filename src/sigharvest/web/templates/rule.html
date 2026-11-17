@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, lvl, st as status_badge, lic, val, tech, copy_btn, crumbs, logsource, strip, cmd %}
+{% block title %}{{ g.title or '(untitled)' }}{% endblock %}
+{% block section %}search{% endblock %}
+{% block content %}
+{% set here = '/rule/' ~ g.logic_hash[:16] %}
+{% set ls = [g.product, g.category, g.service]|select|list %}
+{% macro src_row(c) -%}
+<li><span><a href="/sources/{{ c.source|urlencode }}"><b>{{ c.source }}</b></a>{% if c.canonical %} <span class="canon">canonical</span>{% endif %}</span>{{ lic(c.licence) }}
+  {% if c.link %}<a class="path" href="{{ c.link }}" rel="noopener noreferrer" target="_blank" title="{{ c.path }}{% if c.short %} @ {{ c.short }}{% endif %}">{{ c.path }}{% if c.short %} @ {{ c.short }}{% endif %} {{ icon('external') }}</a>
+  {% else %}<span class="path" title="{{ c.path }}">{{ c.path }}</span>{% endif %}
+  {% if c.note %}<span class="xs muted note">{{ c.note }}</span>{% endif %}</li>
+{%- endmacro %}
+
+{{ crumbs([('Search', '/search')] + ([(g.product, '/search?' ~ {'product': g.product}|qs)] if g.product else []) + ([(g.category or g.service, '/search?' ~ {'product': g.product or '', 'category': g.category or '', 'service': '' if g.category else g.service or ''}|qs)] if (g.category or g.service) else []) + [(g.title or '(untitled)', '')]) }}
+<div class="page-head rule-head">
+  <div><h1>{{ g.title or '(untitled)' }}</h1>
+    <div class="badges">{{ lvl(g.level) }}{{ status_badge(g.status) }}{{ lic(licence) }}{{ val(g.validation, true) }}
+      {%- if g.family_size > 1 %}<a class="badge badge-outline" href="/family/{{ g.logic_hash[:16] }}" title="Versions of the same rule (same id or a related: link)">{{ icon('family') }}{{ g.family_size - 1 }} variant{{ 's' if g.family_size - 1 != 1 }}</a>{% endif %}
+      <span class="badge badge-outline">{{ n_copies }} {{ 'copy' if n_copies == 1 else 'copies' }} &middot; {{ g.n_sources }} {{ 'source' if g.n_sources == 1 else 'sources' }}</span></div></div>
+  <div class="actions">
+    {{ copy_btn('#yaml', 'Copy YAML', 'btn') }}
+    <a class="btn" href="{{ here }}/yaml?download=true">{{ icon('file') }}Download .yml</a>
+    <a class="btn btn-primary" href="/export?{{ {'scope': 'selected', 'h': g.logic_hash}|qs }}" data-action="export-dialog">{{ icon('export') }}Export&hellip;</a>
+  </div>
+</div>
+
+<div class="rule-layout">
+  <div>
+    <section class="summary" aria-labelledby="h-summary">
+      <h2 id="h-summary" class="sr-only">Summary</h2>
+      {% if summary.kind == 'plain' %}
+      <p class="plain">{% for kind, part in summary.parts %}{% if kind == 'b' %}<b>{{ part }}</b>{% elif kind == 'code' %}<code>{{ part }}</code>{% elif kind == 'field' %}<span class="fld">{{ part }}</span>{% else %}{{ part }}{% endif %}{% endfor %}</p>
+      {% elif summary.kind == 'author' %}
+      <p class="plain"><span class="author">Author's description</span>{{ summary.parts[0][1] }}</p>
+      {% else %}<p class="plain muted">This rule has no description and its detection is too complex to summarise. Read the Sigma rule below.</p>{% endif %}
+      <dl class="facts">
+        <div><dt>Detects</dt><dd>{% for t in techniques[:4] %}{{ tech(t.original_id, t.name) }} {% endfor %}
+          {%- if techniques %}<span class="sub">{{ techniques[0].name or techniques[0].label }}{% if tactics %} &middot; {{ tactics[0].replace('-', ' ')|title }}{% endif %}</span>
+          {%- elif tactics %}{{ tactics|map('replace', '-', ' ')|map('title')|join(', ') }}{% else %}<span class="muted">no ATT&amp;CK tags</span>{% endif %}</dd></div>
+        <div><dt>Log source</dt><dd class="mono">{{ ls|join(' / ') or 'any' }}<span class="sub">{{ events }} events</span></dd></div>
+        <div><dt>Known false positives</dt><dd>{% if context.falsepositives %}{{ context.falsepositives[:2]|join('; ') }}{% if context.falsepositives|length > 2 %} <span class="muted">(+{{ context.falsepositives|length - 2 }})</span>{% endif %}{% else %}<span class="muted">none listed</span>{% endif %}</dd></div>
+        <div><dt>Author &middot; licence</dt><dd>{{ g.author or 'unknown author' }}<span class="sub">{{ licence.label }}: {{ licence.meaning }}</span></dd></div>
+      </dl>
+      <div class="needs">{{ icon('about') }}<p class="mb-0"><b>You need:</b> {{ needs }}.{% if needs_known %} Without it the events are never written and this rule cannot fire.{% endif %}</p></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-yaml">
+      <div class="card-head"><h2 id="h-yaml">Sigma rule <span class="sub">canonical copy from {{ g.canonical_source }}{% if rule_date(v) %} &middot; dated {{ rule_date(v) }}{% endif %}</span></h2>
+        <div class="row"><a class="btn btn-quiet btn-sm" href="{{ here }}/yaml">Raw</a>{{ copy_btn('#yaml') }}<a class="btn btn-sm" href="{{ here }}/yaml?download=true">{{ icon('file') }}.yml</a></div></div>
+      <pre class="code yaml" id="yaml">{{ v.raw|yaml_html }}</pre>
+    </section>
+
+    <section class="card" aria-labelledby="h-convert" id="convert" data-logic="{{ g.logic_hash }}">
+      <div class="card-head"><h2 id="h-convert">Use it in your SIEM <span class="sub">ready-to-paste queries</span></h2>{% if tabs %}<a class="small" href="/export?{{ {'scope': 'selected', 'h': g.logic_hash, 'format': 'siem'}|qs }}">More targets and pipelines</a>{% endif %}</div>
+      {% if tabs %}
+      <div class="tabs">
+        {% for t in tabs %}<input type="radio" name="target" id="t-{{ t.target }}"{% if t.checked %} checked{% endif %}>{% endfor %}
+        <div class="tab-list" role="presentation">{% for t in tabs %}<label for="t-{{ t.target }}" title="{{ t.status_label }}">{{ t.label }}</label>{% endfor %}</div>
+        {% for t in tabs %}
+        <div class="tab-panel p-{{ t.target }}"{% if not t.stored %} data-convert="{{ t.target }}"{% endif %}>
+          <div class="tab-meta"><span>{% if t.stored %}Converted with pySigma &middot; {{ t.status_label }}{% if t.pipeline %} &middot; pipeline <code>{{ t.pipeline }}</code>{% else %} &middot; no pipeline, Sigma field names{% endif %} &middot; check field names against your data{% else %}Not converted yet{% endif %}</span>
+            {% if t.blocks %}<span class="row">{{ copy_btn('#q-' ~ t.target) }}<a class="btn btn-sm" href="{{ here }}/query.txt?{{ {'target': t.target}|qs }}">{{ icon('export') }}.txt</a></span>{% endif %}</div>
+          {% if t.blocks %}<pre class="code wrap" id="q-{{ t.target }}">{% for b in t.blocks %}{% if b.label %}# {{ b.label }}
+{% endif %}{{ b.text }}{% if not loop.last %}
+
+{% endif %}{% endfor %}</pre>
+          {% elif t.error %}<p class="tab-note quiet-error">{{ t.target }} cannot convert this rule: {{ t.error }}</p>
+          {% elif t.stored %}<p class="tab-note">{{ t.status_label|capitalize }}{% if t.reason %}: {{ t.reason }}{% endif %}</p>
+          {% else %}<pre class="code wrap" id="q-{{ t.target }}" aria-live="polite"><span class="muted js-only">Converting&hellip;</span></pre>
+          <noscript><p class="tab-note">Open <a href="/api/convert/{{ g.logic_hash }}?{{ {'target': t.target}|qs }}">the conversion as JSON</a> or run <code>sigharvest convert {{ g.logic_hash[:12] }} --to {{ t.target }}</code>.</p></noscript>{% endif %}
+          {% if t.notes and t.blocks %}<ul class="conv-warnings tab-meta">{% for n in t.notes[:4] %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <ul class="conv-warnings sr-only" id="conv-warnings">{% for w in conv_warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+      {% else %}
+      <div class="conv-missing"><p>Query conversion needs the optional pySigma backends, which are not installed here. Install them to see Splunk, Elastic, KQL, OpenSearch and Loki queries for every rule:</p>
+        {{ cmd('c-convert', install_command()) }}
+        <p class="xs muted mt-2 mb-0">Then open a query tab: each rule is converted when you look at it.</p></div>
+      {% endif %}
+    </section>
+
+    {% if variants %}
+    <section class="card" aria-labelledby="h-family">
+      <div class="card-head"><h2 id="h-family">Variants in this family <span class="sub">same rule id or a related: link; the detection differs</span></h2>{% if variants|length > 5 %}<a class="small" href="/family/{{ g.logic_hash[:16] }}">All {{ variants|length }}</a>{% endif %}</div>
+      <div class="card-body"><ul class="rel-list">{% for x in variants[:8] %}
+        <li><span><a href="/rule/{{ x.logic_hash[:16] }}">{{ x.title or '(untitled)' }}</a><span class="why">{{ x.canonical_source }} &middot; {{ logsource(x) }} &middot; {{ variant_diffs.get(x.id, '') }} &middot; <a href="/compare?{{ {'a': g.logic_hash[:16], 'b': x.logic_hash[:16]}|qs }}">compare</a></span></span><span class="sim">{{ x.copies }} {{ 'copy' if x.copies == 1 else 'copies' }}</span></li>{% endfor %}</ul></div>
+    </section>
+    {% endif %}
+
+    {% if similar or related_rules %}
+    <section class="card" aria-labelledby="h-similar">
+      <div class="card-head"><h2 id="h-similar">Similar rules <span class="sub">a different rule with nearly the same detection values, or the same intent on other telemetry</span></h2></div>
+      <div class="card-body"><ul class="rel-list">
+        {% for x, j in similar[:8] %}<li><span><a href="/rule/{{ x.logic_hash[:16] }}">{{ x.title or '(untitled)' }}</a><span class="why">{{ logsource(x) }} &middot; {{ x.canonical_source }}</span></span><span class="sim">{{ (100 * j)|round|int }}% overlap</span></li>{% endfor %}
+        {% for x, why in related_rules[:6] %}<li><span><a href="/rule/{{ x.logic_hash[:16] }}">{{ x.title or '(untitled)' }}</a><span class="why">{{ logsource(x) }} &middot; {{ why }}</span></span><span class="sim">related</span></li>{% endfor %}
+      </ul></div>
+    </section>
+    {% endif %}
+
+    {% if history|length > 1 %}
+    <section class="card">
+      <details class="history"><summary>History of this rule id <span class="muted small">{{ history|length - 1 }} earlier version{{ 's' if history|length - 1 != 1 }}</span></summary>
+      <div class="table-wrap"><table class="rows"><thead><tr><th scope="col">Content</th><th scope="col">Rule date</th><th scope="col">First seen</th><th scope="col"></th></tr></thead><tbody>
+      {% for h in history %}<tr><td class="mono">{{ h.content_hash[:10] }}</td><td>{{ rule_date(h) or '-' }}</td><td>{{ h.first_seen.strftime('%Y-%m-%d') }}</td>
+        <td>{% if h.logic_hash == g.logic_hash %}this rule{% else %}<a href="/rule/{{ h.logic_hash[:16] }}">other logic</a>{% endif %}</td></tr>{% endfor %}
+      </tbody></table></div></details>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="stack" aria-label="Rule details">
+    <section class="card side-card" aria-labelledby="h-copies">
+      <div class="card-head"><h2 id="h-copies">Where it comes from</h2><span class="xs muted">{{ n_copies }} {{ 'copy' if n_copies == 1 else 'copies' }} &middot; {{ g.n_sources }} {{ 'source' if g.n_sources == 1 else 'sources' }} &middot; {{ g.n_independent }} independent</span></div>
+      <div class="card-body"><ul class="src-list">{% for c in copies[:6] %}{{ src_row(c) }}{% endfor %}
+        {% if copies|length > 6 %}<li><details><summary>Show all {{ copies|length }} copies</summary><ul class="src-list src-more">{% for c in copies[6:200] %}{{ src_row(c) }}{% endfor %}</ul></details></li>{% endif %}
+      </ul></div>
+    </section>
+    <section class="card side-card" aria-labelledby="h-details">
+      <div class="card-head"><h2 id="h-details">Details</h2></div>
+      <div class="card-body"><dl class="kv">
+        <dt>Rule id</dt><dd class="mono xs"><span id="rule-id">{{ g.rule_id or '-' }}</span></dd>
+        <dt>Logic hash</dt><dd class="mono xs"><span class="copy-id"><span id="logic-hash" title="{{ g.logic_hash }}">{{ g.logic_hash[:16] }}</span>{{ copy_btn('#logic-full', 'Copy', 'btn btn-quiet btn-sm') }}</span><span id="logic-full" hidden>{{ g.logic_hash }}</span></dd>
+        <dt>Dates</dt><dd>{% if v.date %}created {{ v.date }}{% endif %}{% if v.modified %}{% if v.date %}, {% endif %}modified {{ v.modified }}{% endif %}{% if not v.date and not v.modified %}-{% endif %}</dd>
+        {% if tactics %}<dt>Tactic</dt><dd>{% for t in tactics %}<a href="/search?{{ {'tactic': t}|qs }}">{{ t.replace('-', ' ')|title }}</a>{{ ', ' if not loop.last }}{% endfor %}</dd>{% endif %}
+        <dt>Converts</dt><dd>{% if backends and not conversions %}on demand <span class="sub xs muted">open a query tab to convert this rule; <code class="nowrap">sigharvest update --convert</code> converts the whole index</span>{% elif backends %}{{ converts_ok }} of {{ tabs|length }} targets {{ strip(g) }}<span class="sub xs muted">{{ conv_summary(conv_statuses(g)) }}</span>{% else %}backends not installed{% endif %}</dd>
+        <dt>Validation</dt><dd>{{ val(g.validation, true) }}{% if validation %}{% for issue in (validation.detail.get('issues') or [])[:3] %}<span class="sub xs muted">{{ issue.description if issue is mapping else issue }}</span>{% endfor %}{% endif %}</dd>
+        <dt>Quality</dt><dd>{{ g.score|round|int }}/100 <details class="more-info xs"><summary class="xs muted">how it is scored</summary><span class="xs muted">{{ attack_score_explanation }}</span></details></dd>
+        {% if context.references %}<dt>Reference{{ 's' if context.references|length > 1 }}</dt><dd>{% for r in context.references[:4] %}{% if r.link %}<a href="{{ r.text }}" rel="noopener noreferrer nofollow" target="_blank">{{ r.text.split('/')[2] if r.text.count('/') >= 2 else r.text }} {{ icon('external') }}</a>{% else %}{{ r.text }}{% endif %}{{ '' if loop.last else ', ' }}{% endfor %}{% if context.references|length > 4 %} <span class="muted">+{{ context.references|length - 4 }}</span>{% endif %}</dd>{% endif %}
+      </dl></div>
+    </section>
+    <section class="card side-card" aria-labelledby="h-lic">
+      <div class="card-head"><h2 id="h-lic">Licence</h2></div>
+      <div class="card-body"><p>{{ lic(licence) }} <b>{{ licence.name if licence.cls != 'none' else 'No licence stated' }}</b></p>
+        <p class="small muted mb-0">{{ licence.sentence }} Licence from {{ licence_from }}.</p></div>
+    </section>
+  </aside>
+</div>
+
+<dialog id="export-dialog" aria-labelledby="export-title">
+  <div class="card-head"><h2 id="export-title">Export this rule</h2><button type="button" class="btn btn-quiet btn-sm" data-action="close-dialog">Close</button></div>
+  <div class="card-body"><div class="quick">
+    <a href="/export/download?{{ {'h': g.logic_hash, 'format': 'zip'}|qs }}"><span class="ci">{{ icon('file') }}</span><strong>YAML .zip</strong><span class="d">the rule + NOTICE</span></a>
+    {% if tabs %}<a href="{{ here }}/query.txt?{{ {'target': tabs[0].target}|qs }}"><span class="ci">{{ icon('terminal') }}</span><strong>{{ tabs[0].label }} query</strong><span class="d">as a .txt file</span></a>{% endif %}
+    <a href="/export/download?{{ {'h': g.logic_hash, 'format': 'navigator'}|qs }}"><span class="ci">{{ icon('layers') }}</span><strong>Navigator layer</strong><span class="d">{{ techniques|length }} technique{{ 's' if techniques|length != 1 }}</span></a>
+  </div>
+  <p class="small mt-4 mb-0">Need other formats or options? <a href="/export?{{ {'scope': 'selected', 'h': g.logic_hash}|qs }}">Open the full export page</a>.</p></div>
+</dialog>
+{% endblock %}

@@ -1,0 +1,251 @@
+# Sigma public sources - curated list (default preset). Generated 2026-11-14 from public repository metadata.
+# Schema: name, url, paths (globs; Sigma is recognised by content), licence (SPDX or LicenseRef-*, null = none),
+# redistributable (true/false/unknown), priority (lower wins on duplicate logic), tier, notes.
+sources:
+- name: sigmahq-core
+  url: https://github.com/SigmaHQ/sigma.git
+  paths:
+  - rules/**
+  licence: DRL-1.1
+  redistributable: true
+  priority: 10
+  tier: curated
+  notes: 'SigmaHQ core rule set (reference corpus); verified 2026-11-14: stars=11503, pushed=2026-11-13, archived=false; DRL: keep author/reference attribution'
+- name: sigmahq-emerging-threats
+  url: https://github.com/SigmaHQ/sigma.git
+  paths:
+  - rules-emerging-threats/**
+  licence: DRL-1.1
+  redistributable: true
+  priority: 10
+  tier: curated
+  notes: 'SigmaHQ emerging threats (CVE/actor/malware specific, time-bound); verified 2026-11-14: stars=11503, pushed=2026-11-13, archived=false; DRL: keep author/reference attribution'
+- name: sigmahq-threat-hunting
+  url: https://github.com/SigmaHQ/sigma.git
+  paths:
+  - rules-threat-hunting/**
+  licence: DRL-1.1
+  redistributable: true
+  priority: 15
+  tier: curated
+  notes: 'SigmaHQ threat-hunting rules (broader, noisier by design); verified 2026-11-14: stars=11503, pushed=2026-11-13, archived=false; DRL: keep author/reference attribution'
+- name: yamato-security__hayabusa-rules
+  url: https://github.com/Yamato-Security/hayabusa-rules.git
+  paths:
+  - hayabusa/**
+  - sigma/**
+  licence: DRL-1.1
+  redistributable: true
+  priority: 20
+  tier: curated
+  notes: 'Hayabusa native rules + SigmaHQ rules converted for Hayabusa (sigma/ largely duplicates SigmaHQ logic in converted form; dedupe); verified 2026-11-14: stars=233, pushed=2026-11-13, archived=false;
+    DRL: keep author/reference attribution; ~5028 valid rules'
+- name: yamato-security__suzaku-rules
+  url: https://github.com/Yamato-Security/suzaku-rules.git
+  paths:
+  - sigma/**
+  - suzaku/**
+  licence: DRL-1.1
+  redistributable: true
+  priority: 25
+  tier: curated
+  notes: 'Yamato Security cloud-log (AWS/Azure/GCP) rules for Suzaku; verified 2026-11-14: stars=16, pushed=2026-11-10, archived=false; DRL: keep author/reference attribution; ~999 valid rules'
+- name: mdecrevoisier__sigma-detection-rules
+  url: https://github.com/mdecrevoisier/SIGMA-detection-rules.git
+  paths:
+  - '**'
+  licence: CC0-1.0
+  redistributable: true
+  priority: 25
+  tier: curated
+  notes: '350+ original Windows/AD/Azure rules mapped to ATT&CK; verified 2026-11-14: stars=451, pushed=2026-05-21, archived=false; ~365 valid rules'
+- name: joesecurity__sigma-rules
+  url: https://github.com/joesecurity/sigma-rules.git
+  paths:
+  - rules/**
+  licence: GPL-3.0-only
+  redistributable: true
+  priority: 30
+  tier: curated
+  notes: 'Joe Security sandbox-derived malware rules; verified 2026-11-14: stars=247, pushed=2024-11-04, archived=false; stale (>18 months without push); GPL-3.0: copyleft/share-alike, keep licence + attribution
+    with redistributed rules; ~112 valid rules'
+- name: mbabinski__sigma-rules
+  url: https://github.com/mbabinski/Sigma-Rules.git
+  paths:
+  - '**'
+  licence: GPL-3.0-only
+  redistributable: true
+  priority: 30
+  tier: curated
+  notes: 'Original research rules (ransomware, loaders, Red Canary TDR); verified 2026-11-14: stars=167, pushed=2025-11-25, archived=false; GPL-3.0: copyleft/share-alike, keep licence + attribution with
+    redistributed rules; ~227 valid rules'
+- name: tsale__sigma_rules
+  url: https://github.com/tsale/Sigma_rules.git
+  paths:
+  - '**'
+  licence: GPL-3.0-only
+  redistributable: true
+  priority: 30
+  tier: curated
+  notes: 'Original community rules (LOLBins, malware, exploitation); verified 2026-11-14: stars=127, pushed=2025-01-29, archived=false; stale (>18 months without push); GPL-3.0: copyleft/share-alike, keep
+    licence + attribution with redistributed rules; ~52 valid rules'
+- name: p4t12ick__sigma-rule-repository
+  url: https://github.com/P4T12ICK/Sigma-Rule-Repository.git
+  paths:
+  - detection-rules/**
+  licence: GPL-3.0-only
+  redistributable: true
+  priority: 40
+  tier: curated
+  notes: 'Small, historically referenced repo; inactive since 2020; verified 2026-11-14: stars=93, pushed=2020-06-18, archived=false; stale (>18 months without push); GPL-3.0: copyleft/share-alike, keep
+    licence + attribution with redistributed rules; ~12 valid rules'
+- name: mthcht__threathunting-keywords-sigma-rules
+  url: https://github.com/mthcht/ThreatHunting-Keywords-sigma-rules.git
+  paths:
+  - sigma_rules/**
+  licence: null
+  redistributable: false
+  priority: 40
+  tier: curated
+  notes: 'Keyword-based hunting rules generated from threathunting-keywords (high volume, hunting-grade); verified 2026-11-14: stars=61, pushed=2025-03-02, archived=false; stale (>18 months without push);
+    no licence: index metadata/links only, do not redistribute rule content; ~2516 valid rules'
+- name: magicsword-io__loldrivers
+  url: https://github.com/magicsword-io/LOLDrivers.git
+  paths:
+  - detections/**
+  licence: Apache-2.0
+  redistributable: true
+  priority: 25
+  tier: curated
+  notes: 'LOLDrivers project: vulnerable/malicious driver detections (generated, hash/name based); verified 2026-11-14: stars=1858, pushed=2026-11-02, archived=false; ~1251 valid rules'
+- name: magicsword-io__lolrmm
+  url: https://github.com/magicsword-io/LOLRMM.git
+  paths:
+  - detections/sigma/**
+  licence: Apache-2.0
+  redistributable: true
+  priority: 25
+  tier: curated
+  notes: 'LOLRMM project: RMM tool detections (website/ copy excluded); verified 2026-11-14: stars=418, pushed=2026-11-14, archived=false; ~736 valid rules'
+- name: center-for-threat-informed-defense__cloud-analytics
+  url: https://github.com/center-for-threat-informed-defense/cloud-analytics.git
+  paths:
+  - analytics/**
+  licence: Apache-2.0
+  redistributable: true
+  priority: 35
+  tier: curated
+  notes: 'MITRE CTID cloud analytics; small, inactive since 2023; verified 2026-11-14: stars=56, pushed=2023-04-25, archived=false; stale (>18 months without push); ~13 valid rules'
+- name: trendmicro__tm-v1-detection-models
+  url: https://github.com/trendmicro/tm-v1-detection-models.git
+  paths:
+  - '**'
+  licence: Apache-2.0
+  redistributable: true
+  priority: 35
+  tier: curated
+  notes: 'Trend Vision One detection models published in Sigma format (vendor field names, may need pipeline); verified 2026-11-14: stars=16, pushed=2026-09-07, archived=false; ~4409 valid rules'
+- name: velocidex__velociraptor-sigma-rules
+  url: https://github.com/Velocidex/velociraptor-sigma-rules.git
+  paths:
+  - rules/**
+  licence: null
+  redistributable: false
+  priority: 35
+  tier: curated
+  notes: 'Velocidex Sigma rules for Velociraptor (fixtures excluded); verified 2026-11-14: stars=21, pushed=2026-10-19, archived=false; no licence: index metadata/links only, do not redistribute rule content;
+    ~487 valid rules'
+- name: huntresslabs__threat-intel
+  url: https://github.com/huntresslabs/threat-intel.git
+  paths:
+  - '**'
+  licence: MIT
+  redistributable: true
+  priority: 30
+  tier: curated
+  notes: 'Huntress incident-driven Sigma rules (per-report folders); verified 2026-11-14: stars=71, pushed=2026-10-20, archived=false; ~61 valid rules'
+- name: eset__malware-ioc
+  url: https://github.com/eset/malware-ioc.git
+  paths:
+  - '**'
+  licence: BSD-2-Clause
+  redistributable: true
+  priority: 35
+  tier: curated
+  notes: 'ESET research Sigma rules alongside IoCs; verified 2026-11-14: stars=1998, pushed=2026-11-10, archived=false; ~39 valid rules'
+- name: synacktiv__synacktiv-rules
+  url: https://github.com/synacktiv/synacktiv-rules.git
+  paths:
+  - '**'
+  licence: DRL-1.1
+  redistributable: true
+  priority: 35
+  tier: curated
+  notes: 'Synacktiv public research rules; verified 2026-11-14: stars=21, pushed=2025-10-15, archived=false; DRL: keep author/reference attribution; ~16 valid rules'
+- name: auth0__auth0-customer-detections
+  url: https://github.com/auth0/auth0-customer-detections.git
+  paths:
+  - detections/**
+  licence: Apache-2.0
+  redistributable: true
+  priority: 30
+  tier: curated
+  notes: 'Okta/Auth0 official tenant-log detections; verified 2026-11-14: stars=105, pushed=2026-08-10, archived=false; ~42 valid rules'
+- name: security-onion-solutions__securityonion-resources
+  url: https://github.com/Security-Onion-Solutions/securityonion-resources.git
+  paths:
+  - sigma/**
+  licence: LicenseRef-mixed-per-rule
+  redistributable: unknown
+  priority: 40
+  tier: curated
+  notes: 'Security Onion detection resources; licence varies per rule; verified 2026-11-14: stars=11, pushed=2026-11-13, archived=false; LicenseRef-mixed-per-rule: review licence before redistributing;
+    ~32 valid rules'
+- name: trustoncloud__threatmodel-for-aws-s3
+  url: https://github.com/trustoncloud/threatmodel-for-aws-s3.git
+  paths:
+  - sigma_rules/**
+  licence: CC-BY-SA-4.0
+  redistributable: true
+  priority: 35
+  tier: curated
+  notes: 'TrustOnCloud AWS S3 threat model controls as Sigma; verified 2026-11-14: stars=167, pushed=2026-11-12, archived=false; CC-BY-SA-4.0: copyleft/share-alike, keep licence + attribution with redistributed
+    rules; ~21 valid rules'
+- name: nebulock-inc__macos-coresigma
+  url: https://github.com/Nebulock-Inc/macos-coresigma.git
+  paths:
+  - rules/**
+  licence: MIT
+  redistributable: true
+  priority: 35
+  tier: curated
+  notes: 'macOS ESF/Unified Log rules (Nebulock); verified 2026-11-14: stars=19, pushed=2026-11-14, archived=false; ~57 valid rules'
+- name: ccdcoe__xs-sigma-rules
+  url: https://github.com/ccdcoe/xs-sigma-rules.git
+  paths:
+  - '**'
+  licence: DRL-1.1
+  redistributable: true
+  priority: 40
+  tier: curated
+  notes: 'CCDCOE (Locked Shields) Sigma rules; inactive since 2022, ~11% SigmaHQ overlap; verified 2026-11-14: stars=3, pushed=2022-10-28, archived=false; stale (>18 months without push); DRL: keep author/reference
+    attribution; ~2311 valid rules'
+- name: scythe-io__sigma-regression-testing
+  url: https://github.com/scythe-io/sigma-regression-testing.git
+  paths:
+  - sigma_rules/**
+  licence: DRL-1.1
+  redistributable: true
+  priority: 35
+  tier: curated
+  notes: 'SCYTHE rules with regression tests; verified 2026-11-14: stars=5, pushed=2026-07-31, archived=false; DRL: keep author/reference attribution; ~157 valid rules'
+- name: f5networks__aip-to-sigma
+  url: https://github.com/F5Networks/aip-to-sigma.git
+  paths:
+  - rules/**
+  licence: DRL-1.1
+  redistributable: true
+  priority: 40
+  tier: curated
+  notes: 'F5 Advanced Intelligence Package rules converted to Sigma (web/network); verified 2026-11-14: stars=7, pushed=2024-05-31, archived=false; stale (>18 months without push); DRL: keep author/reference
+    attribution; ~297 valid rules'

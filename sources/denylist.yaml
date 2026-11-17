@@ -1,0 +1,6 @@
+# Repositories never proposed by `discover` (names or URLs). Reasons in comments.
+# Name suggests copies of a commercial (licensed) rule set; excluded until its licence is clarified.
+- adpermana__thor-2
+# Too large: ~71,000 files (an 18-minute clone, over the snapshot byte/file budget) for ~250 rules that may not be
+# redistributed (proprietary licence); removed from extended.yaml on 2026-11-16.
+- cyberdudebivash__cyberdudebivash-threat-intel-platform

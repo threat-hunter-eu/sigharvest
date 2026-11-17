@@ -1,0 +1,215 @@
+name: Weekly source discovery
+
+# Finds candidate Sigma repositories and proposes them in a PR that only touches sources/discovered.yaml.
+# Every entry is enabled: false. Enabling a source is always a manual edit of sources/curated.yaml.
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      max_code_requests:
+        description: Budget for GitHub code search requests (10/min).
+        type: string
+        default: '60'
+      reverify:
+        description: Ignore cached verification results.
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: sigharvest-discover
+  cancel-in-progress: false
+
+env:
+  PR_BRANCH: automation/discover
+  # Workspace for discover's own files (discovery/ reports); the repo's sources/*.yaml are only read.
+  SIGHARVEST_HOME: ${{ github.workspace }}/.ws
+
+jobs:
+  # Clones and parses untrusted repositories: read-only token, no persisted credentials.
+  discover:
+    if: vars.SIGHARVEST_AUTOMATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          python-version: '3.12'
+          enable-cache: false # parses untrusted repositories: neither restores nor saves a uv cache
+
+      - run: uv sync --locked --no-dev
+
+      - id: week
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore verification cache
+        id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ws/discover
+          key: sigharvest-discover-v1-${{ steps.week.outputs.week }}
+          restore-keys: |
+            sigharvest-discover-v1-
+
+      # Two steps so the API token never shares a process (or an environment) with the step that clones and
+      # parses untrusted repositories. The token: a fine-grained PAT, public repositories read-only, no other scope
+      # (GITHUB_TOKEN can get 403 on /search/code). See docs/automation.md.
+      - name: Discover (collect candidates; API only, no clones)
+        env:
+          GITHUB_TOKEN: ${{ secrets.SIGHARVEST_DISCOVERY_TOKEN || github.token }}
+          MAX_CODE: ${{ inputs.max_code_requests || '60' }}
+        run: >-
+          uv run --no-sync sigharvest discover --collect-only
+          --max-repos 300
+          --max-code-requests "$MAX_CODE"
+          --max-http-requests 900
+          --cache-dir .ws/discover
+
+      - name: Discover (verify candidates; clones untrusted repositories, no token)
+        env:
+          REVERIFY: ${{ inputs.reverify && '1' || '' }}
+        run: >-
+          uv run --no-sync sigharvest discover
+          --candidates "$SIGHARVEST_HOME/discovery/candidates.yaml"
+          --output sources/discovered.yaml
+          --known sources/curated.yaml
+          --known sources/extended.yaml
+          --denylist sources/denylist.yaml
+          --verify
+          --min-rules 5
+          --max-repos 300
+          --workers 4
+          --cache-dir .ws/discover
+          --report-file "$RUNNER_TEMP/discovery.md"
+          ${REVERIFY:+--reverify}
+
+      - name: Guard (only discovered.yaml changed, nothing enabled)
+        run: |
+          set -euo pipefail
+          changed=$(git status --porcelain --untracked-files=all -- sources/ | awk '{print $2}')
+          for f in $changed; do
+            [ "$f" = "sources/discovered.yaml" ] || { echo "::error::discover modified $f"; exit 1; }
+          done
+          uv run python - <<'PY'
+          import sys, yaml
+          data = yaml.safe_load(open("sources/discovered.yaml", encoding="utf-8")) or {}
+          bad = [s.get("name") for s in data.get("sources", []) if s.get("enabled", False) is not False]
+          if bad:
+              sys.exit(f"discovered.yaml enables sources: {bad}")
+          print(f"{len(data.get('sources', []))} candidates, all disabled")
+          PY
+
+      - id: diff
+        run: |
+          if git diff --quiet -- sources/discovered.yaml && [ -z "$(git status --porcelain -- sources/discovered.yaml)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$RUNNER_TEMP/discovery.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Save verification cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ws/discover
+          key: sigharvest-discover-v1-${{ steps.week.outputs.week }}
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: discovery
+          path: |
+            sources/discovered.yaml
+            ${{ runner.temp }}/discovery.md
+          if-no-files-found: error
+          retention-days: 14
+
+  pr:
+    needs: discover
+    if: needs.discover.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # GITHUB_TOKEN PRs do not trigger CI; set SIGHARVEST_PR_TOKEN (GitHub App / PAT) if CI must run on them.
+      GH_TOKEN: ${{ secrets.SIGHARVEST_PR_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ secrets.SIGHARVEST_PR_TOKEN || github.token }}
+          persist-credentials: false # the token is passed to `git push` only (last step), never left in .git/config
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: discovery
+          path: ${{ runner.temp }}/discovery
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          enable-cache: false # write-token job: no cache restored from other runs
+
+      # PyYAML for the re-check comes from uv.lock (exact version, hash-verified); nothing unpinned from PyPI here.
+      - run: uv sync --locked --no-dev --no-install-project
+
+      # Re-check here: this job holds a write token, the artifact came from a job that parsed untrusted repos.
+      - name: Re-validate artifact
+        run: |
+          set -euo pipefail
+          src=$(find "$RUNNER_TEMP/discovery" -name discovered.yaml | head -1)
+          uv run --no-sync python -I - "$src" <<'PY'
+          import sys, yaml
+          data = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
+          assert isinstance(data, dict) and isinstance(data.get("sources"), list), "bad shape"
+          for s in data["sources"]:
+              assert s.get("enabled", False) is False, f"enabled: {s.get('name')}"
+              assert str(s.get("url", "")).startswith(("https://github.com/", "https://gitlab.com/")), s.get("url")
+          PY
+          cp "$src" sources/discovered.yaml
+          report=$(find "$RUNNER_TEMP/discovery" -name discovery.md | head -1)
+          {
+            echo "Weekly discovery run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+            echo
+            echo "Only \`sources/discovered.yaml\` changes; every candidate stays \`enabled: false\`."
+            echo "To adopt a source, move it to \`sources/curated.yaml\` in a separate PR after checking its licence."
+            echo
+            head -c 60000 "$report" 2>/dev/null || true
+          } > "$RUNNER_TEMP/body.md"
+
+      - name: Commit, push and open/update the PR
+        env:
+          BASE: ${{ github.event.repository.default_branch || 'main' }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -C "$PR_BRANCH"
+          git add sources/discovered.yaml
+          git commit -q -m "sources: weekly discovery $(date -u +%F)"
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push --force origin "$PR_BRANCH"
+          num=$(gh pr list --head "$PR_BRANCH" --state open --json number --jq '.[0].number // ""')
+          if [ -n "$num" ]; then
+            gh pr edit "$num" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --head "$PR_BRANCH" --base "$BASE" \
+              --title "sources: weekly discovery candidates" --body-file "$RUNNER_TEMP/body.md" \
+              --label discovery || \
+            gh pr create --head "$PR_BRANCH" --base "$BASE" \
+              --title "sources: weekly discovery candidates" --body-file "$RUNNER_TEMP/body.md"
+          fi

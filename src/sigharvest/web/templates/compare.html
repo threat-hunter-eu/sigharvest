@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_ui.html" import crumbs, logsource %}
+{% block title %}Compare two rules{% endblock %}
+{% block section %}search{% endblock %}
+{% block content %}
+{{ crumbs([('Search', '/search'), ('Compare', '')]) }}
+<div class="page-head"><div><h1>Compare two rules</h1>
+  <p class="lede">{{ 'Same detection logic.' if same_logic else 'Same normalised detection (not proof of identical behaviour).' if same_semantic else 'Different detections.' }} {{ changed }} changed line{{ 's' if changed != 1 }} are highlighted.</p></div></div>
+<section class="card"><div class="table-wrap"><table class="rows diff">
+  <thead><tr>
+    <th scope="col"><a href="/rule/{{ a.logic_hash[:16] }}">{{ a.title }}</a><span class="sub">{{ a.canonical_source }} &middot; {{ logsource(a) }} &middot; {{ a.copies }} copies</span></th>
+    <th scope="col"><a href="/rule/{{ b.logic_hash[:16] }}">{{ b.title }}</a><span class="sub">{{ b.canonical_source }} &middot; {{ logsource(b) }} &middot; {{ b.copies }} copies</span></th>
+  </tr></thead>
+  <tbody>{% for lc, lt, rc, rt in rows %}<tr><td class="mono {{ lc }}">{{ lt }}</td><td class="mono {{ rc }}">{{ rt }}</td></tr>{% endfor %}</tbody>
+</table></div></section>
+{% endblock %}

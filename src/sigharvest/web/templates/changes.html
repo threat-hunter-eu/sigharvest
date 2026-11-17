@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, card, when, cmd %}
+{% block title %}Changes{% endblock %}
+{% block section %}changes{% endblock %}
+{% block content %}
+{% macro here(k=kind, p=1, r=(chosen.id if chosen else none)) %}/changes?{{ {'run': r or '', 'kind': k, 'page': p if p > 1 else ''}|qs }}{% endmacro %}
+<div class="page-head">
+  <div><h1>Changes</h1><p class="lede">What the last <code>sigharvest update</code> added, changed upstream or removed. To refresh, run <code>sigharvest update</code> in a terminal.</p></div>
+  {% if chosen and (counts.new or counts.changed) %}<div class="actions">
+    <a class="btn" href="/search?{{ {'new_since_run': chosen.id}|qs }}">{{ icon('search') }}Search these</a>
+    <a class="btn btn-primary" href="/export?{{ {'new_since_run': chosen.id}|qs }}">{{ icon('export') }}Export these</a></div>{% endif %}
+</div>
+
+{% if not chosen %}
+<div class="no-results"><h2>No update report yet</h2><p><code>sigharvest update</code> writes a report each time it runs; this page shows it.</p>{{ cmd('c-upd', 'sigharvest update') }}</div>
+{% else %}
+<div class="spread mb-4">
+  <span class="seg kind-tabs" role="group" aria-label="Kind of change">
+    {% for k, label in [('new', 'New'), ('changed', 'Changed'), ('removed', 'Removed')] %}<a href="{{ here(k) }}"{% if kind == k %} aria-current="true"{% endif %}>{{ label }} ({{ counts[k]|num }})</a>{% endfor %}
+  </span>
+  <form action="/changes" method="get" class="row"><input type="hidden" name="kind" value="{{ kind }}">
+    <label class="small muted" for="run">Update</label>
+    <select id="run" name="run" data-autosubmit>{% for r in runs %}<option value="{{ r.id }}"{% if r.id == chosen.id %} selected{% endif %}>{{ r.started_at.strftime('%d %b %Y %H:%M') }} UTC &middot; {{ r.status }}</option>{% endfor %}</select>
+    <noscript><button class="btn btn-sm" type="submit">Show</button></noscript></form>
+</div>
+
+{% if first %}<div class="notice" role="status">{{ icon('changes') }}<p>This was the <b>first update</b> of this index, so every rule is new. The next <code>sigharvest update</code> will show what changed upstream.</p></div>{% endif %}
+{% for line in incomplete %}<div class="notice notice-warn" role="status">{{ icon('changes') }}<p>{{ line }}. <code>sigharvest runs show {{ chosen.id }}</code> has the full counts.</p></div>{% endfor %}
+{% if per_source and not first %}<p class="small muted">{% for name, v in per_source %}<a href="/sources/{{ name|urlencode }}">{{ name }}</a>: {{ v.new }} new, {{ v.changed }} changed, {{ v.removed }} removed{% if v.error %} <span class="badge health health-failing" title="{{ v.error }}">failed</span>{% endif %}{{ ' · ' if not loop.last }}{% endfor %}</p>{% endif %}
+
+{% if rows %}
+<ul class="results" id="results">
+{% for r in rows %}
+  {% if r.card %}
+  {% if r.diff %}{% call card(r.card, [], false) %}<details><summary class="xs muted">What changed in the detection ({{ r.diff|length }} line{{ 's' if r.diff|length != 1 }})</summary><pre class="change-diff">{% for d in r.diff %}{% if d.startswith('+') %}<span class="add">{{ d }}</span>{% elif d.startswith('-') %}<span class="del">{{ d }}</span>{% else %}{{ d }}{% endif %}
+{% endfor %}</pre></details>{% endcall %}
+  {% else %}{{ card(r.card, [], false) }}{% endif %}
+  {% else %}
+  <li class="result"><span></span><span class="result-title">{{ r.title }}</span><div class="result-side"><span class="badge badge-outline">{{ 'removed' if kind == 'removed' else 'no longer indexed' }}</span></div>
+    <div class="result-meta"><a href="/search?{{ {'q': '"' ~ r.title ~ '"'}|qs }}">Search for similar rules</a></div></li>
+  {% endif %}
+{% endfor %}
+</ul>
+{% if pages > 1 %}<nav class="pager" aria-label="Pages">
+  {% if page > 1 %}<a class="btn btn-sm" href="{{ here(kind, page - 1) }}" rel="prev">Previous</a>{% endif %}<span>Page {{ page }} of {{ pages }}</span>{% if page < pages %}<a class="btn btn-sm" href="{{ here(kind, page + 1) }}" rel="next">Next</a>{% endif %}
+</nav>{% endif %}
+{% else %}
+<div class="no-results"><h2>No {{ kind }} rules in this update</h2><p>Pick another kind above, or another update.</p></div>
+{% endif %}
+{% endif %}
+{% endblock %}

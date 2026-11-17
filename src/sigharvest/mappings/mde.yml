@@ -1,0 +1,100 @@
+# Microsoft Defender for Endpoint / Microsoft Sentinel Device* tables -> Sigma field names.
+# Works on rows exported from advanced hunting (DeviceProcessEvents, DeviceFileEvents, DeviceRegistryEvents,
+# DeviceNetworkEvents, DeviceImageLoadEvents). The first existing column is used.
+# Follows pySigma's Microsoft XDR pipeline (sigma.pipelines.microsoftxdr.mappings): the acting process is
+# FolderPath in DeviceProcessEvents but InitiatingProcessFolderPath in every other table, so each rule category
+# gets the names of its table. `when` keeps rules of a category on rows of their table when the row says which
+# one it is (the Type column of Sentinel exports, ActionType). Not translated: registry hive names
+# (MDE writes HKEY_LOCAL_MACHINE where Sigma rules use HKLM).
+
+# Rules without a category, and categories not listed below: the acting process is the initiating process.
+timestamp_field: 'Timestamp'
+fields:
+  Image: [InitiatingProcessFolderPath]
+  ProcessName: [InitiatingProcessFolderPath]
+  SourceImage: [InitiatingProcessFolderPath]
+  CommandLine: [InitiatingProcessCommandLine]
+  ProcessId: [InitiatingProcessId]
+  ParentProcessId: [InitiatingProcessParentId]
+  ParentCommandLine: [InitiatingProcessParentCommandLine]
+  OriginalFileName: [InitiatingProcessVersionInfoOriginalFileName]
+  Description: [InitiatingProcessVersionInfoFileDescription]
+  Product: [InitiatingProcessVersionInfoProductName]
+  Company: [InitiatingProcessVersionInfoCompanyName]
+  md5: [InitiatingProcessMD5]
+  sha1: [InitiatingProcessSHA1]
+  sha256: [InitiatingProcessSHA256]
+  User: [InitiatingProcessAccountName, AccountName]
+  EventType: [ActionType]
+  Computer: [DeviceName]
+
+categories:
+  process_creation:
+    when:
+      Type: [DeviceProcessEvents]
+      ActionType: [ProcessCreated]
+    fields:
+      Image: [FolderPath]
+      CommandLine: [ProcessCommandLine]
+      ProcessId: [ProcessId]
+      IntegrityLevel: [ProcessIntegrityLevel]
+      OriginalFileName: [ProcessVersionInfoOriginalFileName]
+      Description: [ProcessVersionInfoFileDescription]
+      Product: [ProcessVersionInfoProductName]
+      Company: [ProcessVersionInfoCompanyName]
+      FileVersion: [ProcessVersionInfoProductVersion]
+      md5: [MD5]
+      sha1: [SHA1]
+      sha256: [SHA256]
+      User: [AccountName]
+      LogonId: [LogonId]
+      ParentImage: [InitiatingProcessFolderPath]
+      ParentCommandLine: [InitiatingProcessCommandLine]
+      ParentProcessId: [InitiatingProcessId]
+      ParentUser: [InitiatingProcessAccountName]
+      GrandParentImage: [InitiatingProcessParentFileName]
+
+  image_load:
+    when:
+      Type: [DeviceImageLoadEvents]
+      ActionType: [ImageLoaded]
+    fields:
+      ImageLoaded: [FolderPath]
+      FileVersion: [InitiatingProcessVersionInfoProductVersion]
+      md5: [MD5]
+      sha1: [SHA1]
+      sha256: [SHA256]
+
+  "file_event, file_access, file_change, file_delete, file_rename":
+    when:
+      Type: [DeviceFileEvents]
+      ActionType: [FileCreated, FileModified, FileRenamed, FileDeleted]
+    fields:
+      TargetFilename: [FolderPath]
+      ObjectName: [FolderPath]
+      User: [RequestAccountName, InitiatingProcessAccountName]
+      IntegrityLevel: [InitiatingProcessIntegrityLevel]
+      md5: [MD5]
+      sha1: [SHA1]
+      sha256: [SHA256]
+
+  "registry_event, registry_add, registry_delete, registry_set":
+    when:
+      Type: [DeviceRegistryEvents]
+      ActionType: [RegistryKeyCreated, RegistryKeyDeleted, RegistryKeyRenamed, RegistryValueSet, RegistryValueDeleted]
+    fields:
+      TargetObject: [RegistryKey]
+      ObjectName: [RegistryKey]
+      Details: [RegistryValueData]
+
+  network_connection:
+    when:
+      Type: [DeviceNetworkEvents]
+    fields:
+      Protocol: [Protocol]
+      SourceIp: [LocalIP]
+      SourceHostname: [DeviceName]
+      SourcePort: [LocalPort]
+      DestinationIp: [RemoteIP]
+      DestinationHostname: [RemoteUrl]
+      DestinationPort: [RemotePort]

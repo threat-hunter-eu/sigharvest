@@ -1,0 +1,33 @@
+sigharvest
+Copyright (c) 2026 sigharvest contributors
+
+The sigharvest source code is licensed under the MIT License (see LICENSE).
+
+sigharvest is a tool: this repository does not contain or redistribute third-party Sigma rules. The rules it
+collects stay the property of their authors and are governed by the licence of the repository (or file) they come
+from, for example the Detection Rule License (DRL) 1.1 for SigmaHQ rules, or MIT, Apache-2.0, GPL and others.
+
+- Every exported rule, zip and release pack carries its own NOTICE.md and per-rule source, author and licence
+  information (manifest.jsonl, ATTRIBUTION.md); query exports keep an attribution line for every converted rule.
+- The licence of each configured source is recorded in sources/*.yaml and shown by `sigharvest sources list`, on
+  every rule page and in release metadata. Rules from repositories without a licence are linked, never shipped.
+- Release packs are split by licence family (permissive and copyleft); see docs/releases.md.
+
+Check the licence of each rule before you redistribute it or the queries converted from it.
+
+Bundled with sigharvest (not under the MIT licence):
+- src/sigharvest/web/static/fonts/: Atkinson Hyperlegible Next, Atkinson Hyperlegible Mono and Archivo, under the SIL
+  Open Font License 1.1 (AtkinsonHyperlegibleNext-OFL.txt, AtkinsonHyperlegibleMono-OFL.txt, Archivo-OFL.txt next to
+  the fonts).
+- src/sigharvest/licences/: unmodified copies of standard licence texts (SPDX license-list-data: 0BSD, AGPL-3.0-only,
+  Apache-2.0, BSD-2-Clause, BSD-3-Clause, BSD-4-Clause, CC-BY-3.0, CC-BY-4.0, CC-BY-SA-3.0, CC-BY-SA-4.0, CC0-1.0,
+  EPL-1.0, EPL-2.0, EUPL-1.1, EUPL-1.2, GPL-2.0-only, GPL-3.0-only, ISC, LGPL-2.1-only, LGPL-3.0-only, MIT, MPL-2.0,
+  Python-2.0, Unlicense, Zlib) and the Detection Rule License 1.0 and 1.1 (SigmaHQ/Detection-Rule-License and
+  SigmaHQ/sigma history), shipped with release packs and exports so every rule travels with its licence text. A
+  release build stops when a pack would carry a rule whose licence text is neither bundled nor in its source.
+- src/sigharvest/mappings/: field-name mappings (functional facts), some following public pySigma pipelines.
+
+This project uses third-party Python packages (pySigma and its backends, FastAPI, SQLAlchemy, Typer and others),
+each under its own licence; they are installed as dependencies and are not bundled here. Sigma is a project of the
+SigmaHQ community. MITRE ATT&CK is a registered trademark of The MITRE Corporation; ATT&CK data is used under its
+terms of use.

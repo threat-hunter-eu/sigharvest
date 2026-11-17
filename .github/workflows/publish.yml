@@ -1,0 +1,91 @@
+name: Publish to PyPI
+
+# PyPI trusted publishing (OIDC, no API token): a release whose tag is vX.Y.Z builds the sdist and wheel and uploads
+# them. Off until the repository variable SIGHARVEST_PYPI_ENABLED is 'true' and a trusted publisher for this
+# repository, workflow (publish.yml) and environment (pypi) is configured on PyPI. The nightly rule-pack releases
+# (rules-YYYY-MM-DD) never publish: they do not match the tag filter. The old name SIGHARVEST_PYPI_PUBLISH is still
+# read (deprecated: the run prints a warning; rename the variable).
+#
+# Before enabling, create the `pypi` environment (Settings -> Environments -> New environment `pypi`):
+#   - Required reviewers: the owner (and "Prevent self-review" once there are other maintainers);
+#   - Deployment branches and tags: "Selected branches and tags", add a TAG rule `v*` (no branch rules);
+#   - no secrets (OIDC only).
+# Without that protection GitHub creates the environment on first use with no rules. See docs/automation.md#pypi.
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: publish-pypi
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: >-
+      (vars.SIGHARVEST_PYPI_ENABLED == 'true' || vars.SIGHARVEST_PYPI_PUBLISH == 'true') &&
+      startsWith(github.event.release.tag_name, 'v') &&
+      !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Deprecated variable name
+        if: vars.SIGHARVEST_PYPI_PUBLISH == 'true' && vars.SIGHARVEST_PYPI_ENABLED != 'true'
+        run: echo "::warning::SIGHARVEST_PYPI_PUBLISH is deprecated; rename the repository variable to SIGHARVEST_PYPI_ENABLED"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # all branches: the tagged commit must be on main (next step)
+          persist-credentials: false
+      # A tag can point at any commit (another branch, an unmerged PR head): only commits already on main publish.
+      - name: Tagged commit is on main
+        run: |
+          set -euo pipefail
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main; then
+            echo "::error::release commit $GITHUB_SHA is not on main; refusing to publish"
+            exit 1
+          fi
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          python-version: '3.12'
+          enable-cache: false # never restore a cache another workflow wrote into a release build (cache poisoning)
+      - name: Tag matches the package version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::release tag $TAG does not match pyproject version $version"
+            exit 1
+          fi
+      # README images are relative paths on GitHub; the PyPI page needs absolute URLs (docs/conventions.md).
+      - name: README with absolute URLs for PyPI
+        run: python3 scripts/pypi_readme.py
+      # --no-sources: build exactly what an index install would resolve, ignoring any [tool.uv.sources] overrides.
+      - run: uv build --no-sources
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: # protected: required reviewers + tag rule v* (see the header)
+      name: pypi
+      url: https://pypi.org/p/sigharvest
+    permissions:
+      id-token: write # trusted publishing only; no other write permission
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

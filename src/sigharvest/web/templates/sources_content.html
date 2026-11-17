@@ -1,0 +1,63 @@
+{#- Rendered on its own (also at index time), so it imports what it needs and gets only its arguments. -#}
+{% from "_ui.html" import icon, lic, when %}
+<div class="page-head">
+  <div><h1>Sources <span class="count">{{ configured_count|num }}</span></h1>
+    <p class="lede">The repositories your rules come from, with their licence and what each adds that no other source has.</p>
+    {% if health_counts %}<p class="small muted mb-0">{{ (health_counts.synced + health_counts.stale)|num }} up to date{% if health_counts.stale %} ({{ health_counts.stale|num }} not synced for 30 days){% endif %}{% if health_counts.failing %} &middot; <a href="/sources?{{ dict(sort=sort, health='failing')|qs }}">{{ health_counts.failing|num }} skipped in the last update</a>{% endif %}{% if health_counts.idle %} &middot; {{ health_counts.idle|num }} not synced yet or disabled{% endif %}</p>{% endif %}</div>
+</div>
+{% if needs_index %}<div class="notice" role="status">{{ icon('about') }}<p>Run <code>sigharvest index</code> to compute what each repository contributes and how they overlap.</p></div>{% endif %}
+<div class="stack">
+<section class="card" aria-label="Sources">
+  <form method="get" action="/sources" class="card-head">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <label class="sr-only" for="src-name">Filter sources</label>
+    <input type="search" id="src-name" name="name" value="{{ filters.name }}" maxlength="200" placeholder="Filter by name">
+    <span class="row"><select name="status" aria-label="Status" data-autosubmit><option value="">All statuses</option>{% for value in statuses %}<option value="{{ value }}"{{ ' selected' if filters.status == value }}>{{ value }}</option>{% endfor %}</select>
+    <select name="health" aria-label="Health" data-autosubmit><option value="">Any health</option>{% for value, label in [('synced', 'synced'), ('stale', 'stale'), ('failing', 'skipped')] %}<option value="{{ value }}"{{ ' selected' if filters.health == value }}>{{ label }}</option>{% endfor %}</select>
+    <button class="btn btn-sm" type="submit">Filter</button></span>
+  </form>
+  {% if rows %}
+  <div class="table-wrap src-table"><table class="rows">
+    <thead><tr>
+      {% for key, label, num in [('name', 'Source', false), ('logic', 'Rules', true), ('only', 'Unique', true)] %}
+      <th scope="col" class="{{ 'num' if num }}" aria-sort="{{ ('ascending' if key == 'name' else 'descending') if sort == key else 'none' }}"><a href="/sources?{{ dict(sort=key, name=filters.name, status=filters.status, health=filters.health)|qs }}">{{ label }}{% if sort == key %} {{ '▴' if key == 'name' else '▾' }}{% endif %}</a></th>
+      {% endfor %}
+      <th scope="col">Licence</th><th scope="col">Last sync</th><th scope="col">Health</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a href="/sources/{{ r.name|urlencode }}"><b>{{ r.name }}</b></a>
+          {% if r.url.startswith('https://') %}<span class="sub mono">{{ r.url.removeprefix('https://').removesuffix('.git') }}</span>{% endif %}
+          {% if r.health and r.health.state == 'failing' and r.health.error %}<span class="sub">Skipped: {{ r.health.error[:120] }}</span>{% endif %}
+          {% if r.overlaps and r.overlaps[0].pct %}<span class="sub">{{ r.overlaps[0].pct }}% also in <a href="/sources/{{ r.overlaps[0].name|urlencode }}">{{ r.overlaps[0].name }}</a></span>{% endif %}</td>
+        <td class="num">{{ r.logic|num }}<span class="sub">{{ r.docs|num }} files</span></td>
+        <td class="num"><b>{{ r.only|num }}</b></td>
+        <td>{{ lic(r.lic) }}</td>
+        <td>{{ when(r.last_sync) }}{% if r.commit %}<span class="sub mono">{{ r.commit[:7] }}</span>{% endif %}</td>
+        <td>{% if r.health %}<span class="badge health health-{{ r.health.state }}"{% if r.health.error %} title="{{ r.health.error }}"{% endif %}>{{ r.health.label }}</span>{% elif r.status != 'active' %}<span class="badge badge-outline">{{ r.status }}</span>{% endif %}
+          {% if r.status not in ('active',) and r.health %}<span class="sub">{{ r.status }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{% if filters.name or filters.status or filters.health %}<h2>No sources match these filters</h2><p><a href="/sources">Clear the filters</a> to see all sources.</p>
+  {% else %}<h2>No sources configured</h2><p>Add repositories to <code>sources.yaml</code> (or run <code>sigharvest init --preset curated</code>), then <code>sigharvest update</code>.</p>{% endif %}</div>
+  {% endif %}
+  <div class="card-foot">Unique = rules whose detection logic is found in no other source. A skipped source keeps the rules from its last good sync.</div>
+</section>
+<aside class="grid-2">
+  <section class="card"><div class="card-head"><h2>How to add a source</h2></div>
+    <div class="card-body small"><p>Any git repository with Sigma rules works. Add it, then update:</p>
+      <div class="cmd"><code>sigharvest sources add https://github.com/OWNER/REPO</code></div>
+      <div class="cmd"><code>sigharvest update</code></div>
+      <p class="muted mt-2 mb-0"><code>sigharvest discover</code> finds public repositories you do not have yet.</p></div></section>
+  <section class="card"><div class="card-head"><h2>Health</h2></div>
+    <div class="card-body small"><dl class="kv">
+      <dt><span class="badge health health-synced">synced</span></dt><dd>the last sync worked, less than 30 days ago</dd>
+      <dt><span class="badge health health-stale">stale</span></dt><dd>no sync for more than 30 days</dd>
+      <dt><span class="badge health health-failing">skipped</span></dt><dd>the last sync did not finish (the repository moved, went private or timed out); its rules from the last good sync are kept and the next update tries again</dd>
+    </dl></div></section>
+</aside>
+</div>

@@ -1,0 +1,101 @@
+name: sigharvest lint
+description: >-
+  Lint your own Sigma rules against the public sigharvest corpus (schema/pySigma validation, duplicate logic,
+  reused or colliding ids, placeholder ids, quality flags, ATT&CK tags) and report findings in code scanning.
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  rules:
+    description: Files or folders with your Sigma rules (space separated).
+    default: rules
+  release:
+    description: >-
+      sigharvest release to compare with: a URL folder with manifest.json, index.json.gz and SHA256SUMS, or a local
+      folder. Empty = the newest rules-YYYY-MM-DD release of `rules-repo`.
+    default: ''
+  rules-repo:
+    description: GitHub repository (owner/name) that publishes the nightly rule packs.
+    default: threat-hunter-eu/sigharvest-rules
+  fail-on:
+    description: Finding level that fails the step - error, warning, note or never.
+    default: error
+  sarif:
+    description: Where to write the SARIF report.
+    default: sigharvest-lint.sarif
+  upload-sarif:
+    description: "Upload the SARIF file to code scanning (needs `security-events: write` in the caller)."
+    default: 'true'
+  category:
+    description: Code scanning category.
+    default: sigharvest
+  python-version:
+    description: Python used to run sigharvest.
+    default: '3.12'
+
+outputs:
+  sarif:
+    description: Path of the SARIF report.
+    value: ${{ inputs.sarif }}
+  exit-code:
+    description: 0 = clean below the threshold, 1 = findings at/above fail-on, 2 = usage or download error.
+    value: ${{ steps.lint.outputs.rc }}
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+        python-version: ${{ inputs.python-version }}
+        enable-cache: false # runs in callers' jobs (security-events: write): no shared uv cache
+
+    - id: lint
+      shell: bash
+      env:
+        RULES: ${{ inputs.rules }}
+        RELEASE: ${{ inputs.release }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        SARIF: ${{ inputs.sarif }}
+        RULES_REPO: ${{ inputs.rules-repo }}
+        ACTION_PATH: ${{ github.action_path }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -uo pipefail
+        if [ -z "$RELEASE" ]; then
+          # The newest rules-YYYY-MM-DD data release (releases/latest can be a package release without rule data).
+          repo="${RULES_REPO:-threat-hunter-eu/sigharvest-rules}"
+          tag=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/${repo}/releases?per_page=50" \
+            | python3 -c 'import json,sys; print(next((r["tag_name"] for r in json.load(sys.stdin) if r["tag_name"].startswith("rules-") and not r["draft"]), ""))')
+          if [ -z "$tag" ]; then
+            echo "::error::no rules-* release found in ${repo}"
+            echo "rc=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RELEASE="https://github.com/${repo}/releases/download/${tag}/"
+        fi
+        read -ra paths <<< "$RULES"
+        # Runs the sigharvest of this action's own checkout (the version pinned by the `uses:` ref), with the exact
+        # dependency versions of its uv.lock (no newer pySigma/typer/httpx than the ones that were tested).
+        uv run --locked --no-default-groups --project "$ACTION_PATH" sigharvest lint "${paths[@]}" \
+          --release "$RELEASE" --sarif "$SARIF" --fail-on "$FAIL_ON"
+        rc=$?
+        echo "rc=$rc" >> "$GITHUB_OUTPUT"
+        exit 0
+
+    - if: always() && inputs.upload-sarif == 'true' && hashFiles(inputs.sarif) != ''
+      uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      with:
+        sarif_file: ${{ inputs.sarif }}
+        category: ${{ inputs.category }}
+
+    - shell: bash
+      env:
+        RC: ${{ steps.lint.outputs.rc }}
+      run: |
+        case "$RC" in
+          0) echo "sigharvest lint: no findings at or above the threshold" ;;
+          1) echo "::error::sigharvest lint: findings at or above fail-on"; exit 1 ;;
+          *) echo "::error::sigharvest lint failed to run (exit $RC)"; exit "${RC:-2}" ;;
+        esac

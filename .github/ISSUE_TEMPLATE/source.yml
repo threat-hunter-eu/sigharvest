@@ -1,0 +1,14 @@
+name: Add or fix a rule source
+description: Propose a repository with Sigma rules, or report a wrong licence, path or junk in a source
+labels: [source]
+body:
+  - type: input
+    id: url
+    attributes: {label: Repository URL}
+    validations: {required: true}
+  - type: input
+    id: licence
+    attributes: {label: Licence (SPDX), description: "e.g. DRL-1.1, MIT. Only sources that allow redistribution are added to presets."}
+  - type: textarea
+    id: notes
+    attributes: {label: Notes, description: "Paths with rules, what is special about it, or what is wrong today."}

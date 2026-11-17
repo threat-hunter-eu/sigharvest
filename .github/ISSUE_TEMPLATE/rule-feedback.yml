@@ -1,0 +1,17 @@
+name: Rule feedback (false positive, broken, duplicate)
+description: Tell other users that a rule is noisy, broken, a duplicate or mis-categorised
+labels: [rule-feedback]
+body:
+  - type: input
+    id: key
+    attributes: {label: Rule, description: "logic hash (first 10+ characters) or rule id, as shown by sigharvest"}
+    validations: {required: true}
+  - type: dropdown
+    id: reason
+    attributes:
+      label: Problem
+      options: [noisy / false positives, broken (never fires), duplicate, wrong log source or tags, other]
+    validations: {required: true}
+  - type: textarea
+    id: evidence
+    attributes: {label: Evidence, description: "Environment, sample event (redacted), how often it fires. Rule issues that belong upstream should also be reported to the rule's own repository."}

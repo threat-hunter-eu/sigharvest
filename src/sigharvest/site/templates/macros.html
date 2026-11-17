@@ -1,0 +1,47 @@
+{% macro rule_href(lid, page) -%}
+{%- if page %}{{ base }}{{ page }}{% else %}{{ base }}rule.html?l={{ lid }}{% endif -%}
+{%- endmacro %}
+
+{% macro badges(r) -%}
+<ul class="badges" aria-label="Rule summary">
+  {% if r.level %}<li class="badge lv-{{ r.level }}">level: {{ r.level }}</li>{% endif %}
+  {% if r.status %}<li class="badge">status: {{ r.status }}</li>{% endif %}
+  {% if r.validation == 'ok' %}<li class="badge ok">validates</li>{% elif r.validation == 'warning' %}<li class="badge warn">validates with warnings</li>{% elif r.validation == 'error' %}<li class="badge bad">validation errors</li>{% endif %}
+  <li class="badge">{{ r.n_independent }} independent source{{ '' if r.n_independent == 1 else 's' }}</li>
+  <li class="badge">score {{ r.score|round|int }}</li>
+  {% for f in r.quality_flags %}<li class="badge flag">{{ f|replace('_', ' ') }}</li>{% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro tag_chips(tags) -%}
+{% set ns = namespace(any=false) %}
+<ul class="chips">
+{% for t in tags %}{% set info = t|tag_info %}<li>{% if info[1] %}<a class="{{ info[2] }}" href="{{ info[1] }}" rel="noopener">{{ info[0] }}</a>{% else %}<span>{{ info[0] }}</span>{% endif %}</li>{% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro yaml_block(r, open=true) -%}
+{% if r.yaml %}
+<details{% if open %} open{% endif %}><summary>Sigma rule (YAML)</summary>
+<pre class="yaml" id="yaml-{{ r.lid }}"><code>{{ r.yaml }}</code></pre>
+<p><button class="btn" type="button" data-copy="yaml-{{ r.lid }}">copy YAML</button></p>
+</details>
+{% else %}
+<div class="notice">
+  {% if r.yaml_note == 'size' %}<p>The rule text is too large to show here.</p>
+  {% elif r.licence_class == 'none' %}<p>Text not redistributed: this rule has no stated licence, so only its metadata is published here.</p>
+  {% else %}<p>Text not redistributed: the licence of this rule ({{ r.licence }}) does not allow it to be republished here.</p>{% endif %}
+  {% if r.canonical.url %}<p><a href="{{ r.canonical.url }}" rel="noopener nofollow">View the rule at its source &rarr;</a></p>{% endif %}
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro licence_block(r) -%}
+<div class="notice licence">
+  <p><strong>Licence:</strong> {% if r.licence_links %}{% for l in r.licence_links %}{% if not loop.first %} / {% endif %}{% if l.url %}<a href="{{ l.url }}" rel="noopener">{{ l.id }}</a>{% else %}{{ l.id }}{% endif %}{% endfor %}{% else %}{{ r.licence or 'not stated' }}{% endif %}{% if r.licence_from %} <span class="muted">({{ r.licence_from }})</span>{% endif %}{% if r.licence_class %} <span class="muted">- class {{ r.licence_class }}</span>{% endif %}</p>
+  {% if r.drl_origin %}<p>This rule is a copy of a SigmaHQ rule under the <a href="https://github.com/SigmaHQ/Detection-Rule-License/blob/main/LICENSE.Detection.Rules.md" rel="noopener">Detection Rule License 1.1</a>: keep its author when you share it.</p>{% endif %}
+  <p><strong>Author:</strong> {{ r.author or 'not stated' }}. Copyright stays with the rule's authors.</p>
+  <p><strong>Canonical copy:</strong> {{ r.canonical.source or '?' }}{% if r.canonical.path %} / <code>{{ r.canonical.path }}</code>{% endif %}{% if r.canonical.commit %} @ <code>{{ r.canonical.commit[:12] }}</code>{% endif %}
+  {% if r.canonical.url %} - <a href="{{ r.canonical.url }}" rel="noopener nofollow">open at source</a>{% endif %}</p>
+</div>
+{%- endmacro %}

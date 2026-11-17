@@ -1,0 +1,11 @@
+title: Example remote rule
+id: 264956cc-7299-4fbf-967a-2f2c6df16be6
+status: experimental
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    Image|endswith: '\notepad.exe'
+  condition: selection
+level: low

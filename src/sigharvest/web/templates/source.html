@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, lic, card, when, crumbs %}
+{% block title %}{{ source.name }} - Sources{% endblock %}
+{% block section %}sources{% endblock %}
+{% block content %}
+{{ crumbs([('Sources', '/sources'), (source.name, '')]) }}
+<div class="page-head">
+  <div><h1>{{ source.name }}</h1>
+    <div class="badges row mt-2">{{ lic(licinfo) }}{% if health %}<span class="badge health health-{{ health.state }}"{% if health.error %} title="{{ health.error }}"{% endif %}>{{ health.label }}</span>{% endif %}
+      {% if link %}<a class="small mono" href="{{ link }}" rel="noopener noreferrer">{{ link.removeprefix('https://') }} {{ icon('external') }}</a>{% endif %}
+      {% if not pending and source.last_commit %}<span class="small muted">commit <span class="mono">{{ source.last_commit[:7] }}</span> &middot; synced {{ when(source.last_sync_at) }}</span>{% endif %}</div></div>
+  <div class="actions"><a class="btn" href="/search?{{ dict(source=source.name)|qs }}">{{ icon('search') }}Search this source</a>
+    <a class="btn btn-primary" href="/search?{{ dict(source=source.name, source_only='1')|qs }}">Only rules found nowhere else</a></div>
+</div>
+{% if health and health.state == 'failing' %}<div class="notice" role="status">{{ icon('about') }}<p><b>Skipped in the last update:</b> {{ health.error or 'the sync did not finish' }}. The rules from its last good sync are kept; the next <code>sigharvest update</code> tries again.</p></div>{% endif %}
+{% if pending %}<div class="notice" role="status">{{ icon('about') }}<p>This source was added and is waiting for the next update. Run <code>sigharvest update</code> to fetch its rules.</p></div>{% endif %}
+
+{% if summary %}
+<div class="stat-row">
+  <a class="stat" href="/search?{{ dict(source=source.name)|qs }}"><span class="stat-n">{{ summary.logic|num }}</span><span class="stat-l">Rules</span><span class="stat-d">{{ summary.documents|num }} rule files</span></a>
+  <a class="stat" href="/search?{{ dict(source=source.name, source_only='1')|qs }}"><span class="stat-n">{{ summary.only|num }}</span><span class="stat-l">Unique here</span><span class="stat-d">found in no other source</span></a>
+  <div class="stat"><span class="stat-n">{{ (summary.valid_pct ~ '%') if summary.valid_pct is not none else '-' }}</span><span class="stat-l">Valid</span><span class="stat-d">of its unique rules pass pySigma validation</span></div>
+</div>
+{% endif %}
+
+<div class="rule-layout">
+  <div>
+    <section class="card" aria-labelledby="h-only"><div class="card-head"><h2 id="h-only">Found only here <span class="sub">{{ total|num }} rule{{ 's' if total != 1 }}</span></h2></div>
+      <div class="card-body">{% if rows %}<ul class="results">{% for r in rows %}{{ card(r, [], false) }}{% endfor %}</ul>
+        {% if pages > 1 %}<nav class="pager" aria-label="Pages">{% if page > 1 %}<a class="btn btn-sm" rel="prev" href="?page={{ page - 1 }}">Previous</a>{% endif %}<span>Page {{ page }} of {{ pages }}</span>{% if page < pages %}<a class="btn btn-sm" rel="next" href="?page={{ page + 1 }}">Next</a>{% endif %}</nav>{% endif %}
+        {% else %}<p class="muted small mb-0">Every rule of this source is also somewhere else.</p>{% endif %}</div></section>
+  </div>
+  <aside class="stack">
+    {% if summary %}
+    <section class="card side-card" aria-labelledby="h-ov"><div class="card-head"><h2 id="h-ov">Overlap with other sources</h2></div>
+      {% if overlaps %}<div class="table-wrap"><table class="rows"><thead><tr><th scope="col">Source</th><th scope="col" class="num">Exact</th><th scope="col" class="num">Near</th></tr></thead><tbody>
+      {% for r in overlaps %}<tr><td><a href="/sources/{{ r.other|urlencode }}">{{ r.other }}</a></td><td class="num">{{ r.exact|num }}<span class="sub">{{ (100 * r.exact / (summary.logic or 1))|round(1) }}%</span></td><td class="num">{{ r.near|num }}</td></tr>{% endfor %}
+      </tbody></table></div>{% else %}<div class="card-body small muted">No other source shares its rules.</div>{% endif %}
+      <div class="card-foot xs">Exact = same detection logic. Near = similar detection values (MinHash, Jaccard &ge; 0.8), not proof of the same behaviour.</div></section>
+    {% endif %}
+    <section class="card side-card"><div class="card-head"><h2>Licence</h2></div>
+      <div class="card-body"><p>{{ lic(licinfo) }} <b>{{ licinfo.name if licinfo.cls != 'none' else 'No licence stated' }}</b></p><p class="small muted mb-0">{{ licinfo.sentence }}</p></div></section>
+  </aside>
+</div>
+{% endblock %}

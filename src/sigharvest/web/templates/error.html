@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon %}
+{% block title %}{{ title }}{% endblock %}
+{% block section %}error{% endblock %}
+{% block content %}
+<div class="error-page">
+  <p class="code-n">HTTP {{ status }}</p>
+  <h1>{{ title }}</h1>
+  <p class="lede">{% if status == 404 and (not detail or detail|lower == 'not found') %}There is no page at this address.{% else %}{{ detail }}{% endif %}{% if status == 404 %} It may have been removed in the last update: see <a href="/changes">Changes</a>.{% endif %}</p>
+  <form class="searchbar" action="/search" method="get" role="search">{{ icon('search') }}<input type="search" name="q" aria-label="Search rules" placeholder="Search rules instead"></form>
+  <p><a class="btn" href="/">Overview</a> <a class="btn btn-quiet" href="/search">Search rules</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Attribution and licences{% endblock %}
+{% block description %}Sources and licences of the Sigma rules published on this site.{% endblock %}
+{% block main %}
+<h1>Attribution and licences</h1>
+<p class="lead">The rules on this site were written by the authors of the repositories below and keep their licences. Each rule page names the rule's licence (the rule's own <code>license:</code> field, else the licence of the repository its canonical copy comes from) and links to the canonical copy.</p>
+<div class="notice">
+  <p>The rule text is republished only for these licence classes: <strong>{{ classes|join(', ') or 'none' }}</strong>. Rules without a stated licence are listed with their metadata and a link to their source only: without a licence nobody else may redistribute the text.</p>
+  <p>Licence classes are guidance encoded as code, not legal advice. If you are an author and want a rule removed or attributed differently, open an issue in the <a href="{{ issues_url }}">sigharvest repository</a>{% if contact_email %} or write to {{ contact_email }}{% endif %}.</p>
+</div>
+<p>Machine-readable copy: <a href="{{ base }}ATTRIBUTION.md">ATTRIBUTION.md</a>.{% if has_notice %} Copyright notices of the sources: <a href="{{ base }}NOTICE.md">NOTICE.md</a>.{% endif %} Each release also ships <code>LICENSES.zip</code> with the full licence texts and the publishers' own licence files. Copies of SigmaHQ rules published elsewhere under another licence are marked on their rule page and keep the <a href="https://github.com/SigmaHQ/Detection-Rule-License/blob/main/LICENSE.Detection.Rules.md" rel="noopener">Detection Rule License</a> attribution.</p>
+{% if attack_version %}<p>ATT&amp;CK data (version {{ attack_version }}): {{ attack_copyright }} {{ attack_trademark }} <a href="{{ attack_terms_url }}">ATT&amp;CK terms of use</a>.</p>{% endif %}
+<p>{{ not_affiliated }}</p>
+<h2>Sources ({{ sources|length }})</h2>
+<table class="list">
+<thead><tr><th scope="col">source</th><th scope="col">licence</th><th scope="col">rules</th><th scope="col" class="opt">commit</th></tr></thead>
+<tbody>
+{% for s in sources %}<tr><td>{% if s.url %}<a href="{{ s.url }}" rel="noopener nofollow">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}</td><td>{% for l in s.licence|licence_links %}{% if not loop.first %} / {% endif %}{% if l.url %}<a href="{{ l.url }}" rel="noopener">{{ l.id }}</a>{% else %}{{ l.id }}{% endif %}{% else %}not stated{% endfor %}</td><td class="mono">{{ "{:,}".format(s.rules or 0) }}</td><td class="opt mono">{{ (s.commit or '')[:12] }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

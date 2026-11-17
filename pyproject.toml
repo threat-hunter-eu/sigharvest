@@ -1,0 +1,153 @@
+[project]
+name = "sigharvest"
+version = "0.1.0"
+description = "Sigma rule aggregator: collect public Sigma rules, deduplicate, search, validate, convert and export them"
+readme = "README.md"
+requires-python = ">=3.12"
+# The bundled web fonts (src/sigharvest/web/static/fonts) are under the SIL Open Font License 1.1.
+license = "MIT AND OFL-1.1"
+license-files = ["LICENSE", "NOTICE", "src/sigharvest/web/static/fonts/*-OFL.txt"]
+authors = [{ name = "sigharvest contributors" }]
+keywords = ["sigma", "detection-engineering", "siem", "threat-hunting", "pysigma", "detection-rules", "blue-team"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    # POSIX only: Windows is supported through WSL (docs/getting-started.md#windows-use-wsl).
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+]
+dependencies = [
+    "alembic>=1.20.1",
+    "fastapi>=0.162.0",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "jsonschema>=4.26.0",
+    "markupsafe>=3.0",
+    "pyparsing>=3.1",
+    # pySigma 1.5 or 2.x: the code runs on both; the convert / convert-legacy extras pick one.
+    # Logic and semantic hashes are the same on both (golden tests; a full SigmaHQ core comparison between pySigma 1 and 2).
+    "pysigma>=1.5.1,<3",
+    "pysigma-pipeline-sysmon>=2.0.0,<4",
+    "pysigma-pipeline-windows>=2.0.1,<4",
+    "python-multipart>=0.0.32",
+    "pyyaml>=6.0.3",
+    "rich>=15.0.0",
+    "sqlalchemy>=2.1.6",
+    # Public typer API only (Literal choices, typer.core classes); tested with 0.27 and 0.29.
+    "typer>=0.27.3,<1",
+    "uvicorn>=0.54.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/threat-hunter-eu/sigharvest"
+Website = "https://threat-hunting.eu/tools/sigharvest"
+Documentation = "https://github.com/threat-hunter-eu/sigharvest#readme"
+Issues = "https://github.com/threat-hunter-eu/sigharvest/issues"
+Changelog = "https://github.com/threat-hunter-eu/sigharvest/blob/main/CHANGELOG.md"
+
+[project.scripts]
+sigharvest = "sigharvest.cli:main"
+
+[project.optional-dependencies]
+# Query conversion (export --format splunk..., convert, the convert test stage). Kept optional so the base
+# install never pins pySigma backend versions. Two mutually exclusive sets:
+#   convert         pySigma 2 and the backends released for it (the default, what CI locks)
+#   convert-legacy  pySigma 1.x and all seven backends, for Elastic/OpenSearch/MDE until they support pySigma 2
+convert = [
+    # Only backends released for pySigma 2. Not included until they publish a pySigma 2 release:
+    # pysigma-backend-elasticsearch (lucene, esql; main already requires pySigma ^2, 2.1.1 on PyPI needs <2),
+    # pysigma-backend-opensearch (2.0.3 needs pySigma <2) and pysigma-backend-kusto (1.0.1 needs pySigma <2).
+    "pysigma-backend-loki>=0.16,<0.17",
+    "pysigma-backend-splunk>=3.0.0,<4",
+    "pysigma-backend-sqlite>=2.1.1,<3",
+    "pysigma>=2.1.0,<3",
+]
+convert-legacy = [
+    "pysigma>=1.5.1,<2",
+    "pysigma-backend-elasticsearch>=2.1.1",
+    "pysigma-backend-kusto>=1.0.1",
+    "pysigma-backend-loki>=0.15.1,<0.16",
+    "pysigma-backend-opensearch>=2.0.3",
+    "pysigma-backend-splunk>=2.1.0,<3",
+    "pysigma-backend-sqlite>=2.0.0,<2.1",
+]
+
+[tool.uv]
+conflicts = [[{ extra = "convert" }, { extra = "convert-legacy" }]]
+# Lock-time floors for transitive dependencies with known advisories (SECURITY.md#dependency-advisories).
+# opentelemetry-api (via fastapi): GHSA-mf5v-w3w3-f6cg / CVE-2026-126360, fixed in 1.45.2.
+constraint-dependencies = ["opentelemetry-api>=1.45.2"]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "sigharvest[convert]",
+    { include-group = "test" },
+    "mypy>=2.4.1",
+    "pre-commit>=4.7.0",
+    "ruff>=0.17.2",
+    "types-pyyaml>=6.0.12.20260906",
+]
+# The test tools alone, without [convert], for the convert-legacy CI job:
+#   uv sync --no-default-groups --group test --extra convert-legacy
+test = [
+    "httpx>=0.28.1",
+    "hypothesis>=6.170.13",
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
+]
+
+# The phone-layout test (tests/test_web_layout.py) in a real browser; CI also runs `playwright install chromium`.
+browser = ["playwright>=1.64.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --dist worksteal -m 'not slow and not docs'"
+markers = [
+    "e2e: the end-to-end user journey (tests/test_e2e.py); runs in CI",
+    "slow: expensive integration or exhaustive contract; excluded by default, included with -m 'slow or not slow'",
+    "docs: runs the shell examples of README.md and docs/*.md against an offline fixture workspace (tests/test_docs.py); excluded by default, run with -m docs",
+    "backend(*targets): needs these conversion targets; skipped when their pySigma backend is not installed (conftest.py)",
+]
+
+[tool.ruff]
+line-length = 160
+target-version = "py312"
+extend-exclude = ["corpus", "data", "src/sigharvest/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "SIM", "RUF"]
+ignore = ["S603", "S607", "S101", "RUF001", "RUF002", "RUF003", "B008", "RUF012", "UP047"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["sigharvest"]
+mypy_path = "src"
+ignore_missing_imports = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+exclude = ["migrations/"]
+
+[tool.coverage.run]
+source = ["sigharvest"]
+core = "sysmon"  # Python 3.12+: much lower overhead than the trace function (older Pythons fall back to it)
+omit = ["*/sigharvest/migrations/versions/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true

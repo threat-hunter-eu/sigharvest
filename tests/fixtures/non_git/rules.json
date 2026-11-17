@@ -1,0 +1,6 @@
+[
+  {
+    "id": "DET-001",
+    "sigma_rule": "title: Example remote rule\nid: 264956cc-7299-4fbf-967a-2f2c6df16be6\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection:\n    Image|endswith: '\\notepad.exe'\n  condition: selection\nlevel: low\n"
+  }
+]

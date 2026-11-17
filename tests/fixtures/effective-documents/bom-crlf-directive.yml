@@ -1,0 +1,9 @@
+﻿%YAML 1.1
+---
+action: global
+logsource: {product: windows, category: process_creation}
+---
+title: Legacy
+detection:
+  sel: {Image: cmd.exe}
+  condition: sel

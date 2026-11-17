@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, lic_class, copy_btn %}
+{% block title %}Export{% endblock %}
+{% block section %}export{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Export</h1><p class="lede">Take rules out in the format your tools need. Licences and authors are kept with every rule.</p></div>
+</div>
+{% if error %}<div class="notice notice-warn" role="alert">{{ icon('about') }}<p>{{ error }}{% if too_big and core and scope == 'all' %} <a href="{{ core_href }}">Export SigmaHQ's core profile ({{ core|num }} rules, one per logic; {{ core_families|num }} families)</a>.{% endif %}</p></div>
+{% elif big_default %}<div class="notice" role="status">{{ icon('about') }}<p>Your index has {{ counts.all|num }} rules, more than the {{ limit|num }} a web download can hold, so this page starts from SigmaHQ's <b>core</b> profile ({{ core|num }} rules, one per logic; {{ core_families|num }} families, the unit <code>sigharvest export</code> uses by default). Search first to export other rules, or use the command under Download for everything.</p></div>{% endif %}
+
+<form class="export-form" action="/export/download" method="get">
+{% for k, v in hidden %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+<div class="export-layout">
+  <div>
+    <section class="card" aria-labelledby="h-what">
+      <div class="card-body export-scope">
+        <div><h2 id="h-what">What to export</h2>
+          <p class="small muted mb-0">{% if scope == 'search' %}From your search {% for k, v in described %}{% if k == 'text' %}<code>{{ v }}</code>{% else %}&middot; {{ k }} <b>{{ v }}</b>{% endif %} {% endfor %}
+          {% elif scope == 'selected' %}The {{ counts.selected|num }} rule{{ 's' if counts.selected != 1 }} you selected
+          {% else %}Every rule in your index (deprecated, unsupported and low-quality rules stay out){% endif %}</p></div>
+        <span class="seg" role="group" aria-label="What to export">
+          {% if has_search %}<a href="{{ scope_href('search') }}"{% if scope == 'search' %} aria-current="true"{% endif %}>This search ({{ counts.search|num }})</a>{% endif %}
+          {% if counts.selected %}<a href="{{ scope_href('selected') }}"{% if scope == 'selected' %} aria-current="true"{% endif %}>Selected ({{ counts.selected|num }})</a>{% endif %}
+          <a href="{{ scope_href('all') }}"{% if scope == 'all' %} aria-current="true"{% endif %}>Everything ({{ counts.all|num }})</a>
+        </span>
+      </div>
+    </section>
+
+    <fieldset class="choices mt-4">
+      <legend>Format</legend>
+      <label class="choice"><input type="radio" name="format" value="zip" id="f-zip"{% if fmt == 'zip' %} checked{% endif %}><span class="ci">{{ icon('file') }}</span><strong>Sigma YAML (.zip)</strong><span class="d">One .yml per rule, folders by licence and log source. For sigma-cli, pySigma, git.</span></label>
+      <label class="choice"><input type="radio" name="format" value="siem" id="f-siem"{% if fmt == 'siem' %} checked{% endif %}{% if not backends %} disabled{% endif %}><span class="ci">{{ icon('terminal') }}</span><strong>SIEM queries</strong><span class="d">{% if backends %}Converted with pySigma: {{ backends|map('replace', 'microsoft365defender', 'KQL')|join(', ') }}.{% else %}Needs the optional backends: <code>{{ install_command() }}</code>.{% endif %}</span></label>
+      <label class="choice"><input type="radio" name="format" value="navigator" id="f-nav"{% if fmt == 'navigator' %} checked{% endif %}><span class="ci">{{ icon('layers') }}</span><strong>ATT&amp;CK Navigator layer</strong><span class="d">JSON layer; score = number of rules per technique ({{ techniques|num }} techniques).</span></label>
+      <label class="choice"><input type="radio" name="format" value="sheet" id="f-sheet"{% if fmt == 'sheet' %} checked{% endif %}><span class="ci">{{ icon('table') }}</span><strong>Spreadsheet (CSV / JSONL)</strong><span class="d">Metadata: title, level, ATT&amp;CK, sources, licence, link. JSONL adds the YAML.</span></label>
+      {% if backends %}<div class="siem-opts">
+        <label class="field">Target<select name="target">{% for b in backends %}<option value="{{ b }}"{% if b == target %} selected{% endif %}>{{ query_labels.get(b, b) }}</option>{% endfor %}</select></label>
+        <label class="check small"><input type="checkbox" name="raw" value="1"> Also write syntax-only queries (no pipeline maps the log source)</label>
+      </div>{% endif %}
+    </fieldset>
+
+    <section class="card" aria-labelledby="h-opts">
+      <div class="card-head"><h2 id="h-opts">Options</h2><span class="xs muted">defaults are safe; change only if you need to</span></div>
+      <div class="card-body">
+        <div class="options">
+          <label class="field">Package<select name="package"><option value="zip">One file per rule (.zip)</option><option value="yaml">One multi-document .yml</option></select><span class="hint">Applies to Sigma YAML.</span></label>
+          <label class="field">Folder layout<select name="layout">{% for v, label in [('logsource', 'product / category'), ('source', 'by source'), ('flat', 'flat')] %}<option value="{{ v }}"{% if layout == v %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><span class="hint">Duplicates are already removed.</span></label>
+          <label class="field">Licences<select name="licences">{% for v, label in [('split', 'Split by licence'), ('permissive', 'Permissive only'), ('all', 'Everything with a licence, one folder')] %}<option value="{{ v }}"{% if licences == v %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><span class="hint">Rules with no licence, or from a source not marked redistributable, are only linked.</span></label>
+          <label class="check small"><input type="checkbox" name="deprecated" value="1"{% if deprecated %} checked{% endif %}> Include deprecated and unsupported rules</label>
+          <label class="check small"><input type="checkbox" name="skip_invalid" value="1"{% if skip_invalid %} checked{% endif %}> Skip rules that fail validation</label>
+          <label class="check small"><input type="checkbox" name="private" value="1"{% if private %} checked{% endif %}> Private copy: also include rules that may not be redistributed (your own local rules, sources without a licence)</label>
+          {% if private %}<p class="tab-note quiet-error small">This download will contain rules whose licence or source does not allow sharing. Keep it for your own use.</p>{% endif %}
+          <label class="field">Spreadsheet<select name="sheet"><option value="csv">CSV</option><option value="jsonl">JSONL (with YAML)</option></select></label>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-cli">
+      <div class="card-head"><h2 id="h-cli">Same thing from the terminal</h2></div>
+      <div class="card-body">
+        {% for f in ['zip', 'siem', 'navigator', 'sheet'] %}<div class="cmd cli-line cli-{{ f }}"><code id="cli-{{ f }}">{{ cli[f] }}</code>{{ copy_btn('#cli-' ~ f) }}</div>{% endfor %}
+        {% if scope == 'selected' %}<p class="xs muted mt-2 mb-0">A hand-picked selection has no single flag: save it as a collection (<code>sigharvest collection</code>) to export it from the terminal.</p>{% endif %}
+      </div>
+    </section>
+  </div>
+
+  <aside class="summary-box">
+    <section class="card" aria-labelledby="h-sum">
+      <div class="card-head"><h2 id="h-sum">Your download</h2></div>
+      <div class="card-body">
+        <p class="mb-4"><span class="big">{{ summary.included|num }}</span> <span class="muted">rule{{ 's' if summary.included != 1 }} copied{% if summary.private %} ({{ summary.private|num }} private){% endif %} &middot; about {% if summary.size >= 1048576 %}{{ '%.1f'|format(summary.size / 1048576) }} MB{% else %}{{ [(summary.size / 1024)|round|int, 1]|max|num }} KB{% endif %} of YAML</span></p>
+        <table class="licence-table">{% for x in summary.classes %}
+          <tr><td>{{ lic_class(x.cls) }}</td><td class="small">{% if x.included %}{{ x.ids|join(', ') }}{% else %}linked in SKIPPED.md{% endif %}</td><td class="num">{{ x.n|num }}</td></tr>{% endfor %}
+        </table>
+        <pre class="file-tree mt-4">{{ stem }}.zip
+├── NOTICE.md       how to reuse
+├── LICENSES.md     licences used
+├── ATTRIBUTION.md  author per rule
+├── manifest.jsonl  repo, path, licence
+├── provenance.json
+├── SKIPPED.md      {{ summary.skipped }} link{{ 's' if summary.skipped != 1 }}
+{% if licences == 'split' %}{% for x in summary.classes if x.included %}{{ '└──' if loop.last else '├──' }} {{ x.cls }}/{{ x.ids[0] if x.ids else '' }}/…
+{% endfor %}{% else %}└── {{ 'windows/process_creation/…' if layout == 'logsource' else 'sigmahq-core/…' if layout == 'source' else '*.yml' }}{% endif %}</pre>
+        <button class="btn btn-primary btn-lg mt-4 full" type="submit"{% if not n %} disabled{% endif %}>{{ icon('export') }}Download</button>
+        <p class="xs muted mt-2 mb-0">Nothing leaves your machine: the file is built locally from your index.</p>
+      </div>
+    </section>
+  </aside>
+</div>
+</form>
+{% endblock %}

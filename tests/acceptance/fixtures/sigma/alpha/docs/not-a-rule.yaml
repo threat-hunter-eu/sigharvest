@@ -1,0 +1,6 @@
+# A YAML file that is not a Sigma rule (CI config style); must not become a rule.
+name: lint
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest

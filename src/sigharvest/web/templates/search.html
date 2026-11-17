@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, lvl, st as status_badge, lic, lic_class, tech, card, logsource %}
+{% block title %}{{ q ~ ' - ' if q }}Search{% endblock %}
+{% block section %}search{% endblock %}
+{% block content %}
+{% macro hidden(exclude=[]) %}{% for k, v in base.items() %}{% if v and k not in exclude and k != 'page' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}{% endmacro %}
+{% set MULTI = ('level', 'status', 'validation') %}
+{% macro chosen(name) %}{{ (params[name]|lower).split(',')|map('trim')|reject('equalto', '')|join(',') }}{% endmacro %}
+{% macro facet_link(name, value, label_html, count, active) -%}
+{%- if name in MULTI -%}
+  {#- Multi-select: each link adds or removes its value from the comma list (level=high,critical is high OR critical). -#}
+  {%- set current = chosen(name).split(',')|reject('equalto', '')|list -%}
+  {%- set target = (current|reject('equalto', value|lower)|list) if active else current + [value|lower] -%}
+  {%- set target = target|join(',') -%}
+{%- else -%}{%- set target = '' if active else value -%}{%- endif -%}
+<li{% if not count and not active %} class="is-zero"{% endif %}><a href="{{ href(page='', **{name: target}) }}"{% if active %} aria-current="true"{% endif %}><span class="box" aria-hidden="true"></span>{{ label_html }}<span class="n">{{ count|num }}</span></a></li>
+{%- endmacro %}
+{% macro is_active(name, value) %}{% if name in MULTI %}{{ (value|lower) in chosen(name).split(',') }}{% else %}{{ (params[name]|lower) == (value|lower) }}{% endif %}{% endmacro %}
+{% macro facet(name, label, rows, kind='text', open=true, filter=false) %}
+<details class="facet"{% if open or params[name] %} open{% endif %} data-facet="{{ name }}"><summary>{{ label }}</summary>
+  {% if filter and rows|length > 6 %}<input type="search" class="js-only" placeholder="Filter {{ label|lower }}" aria-label="Filter {{ label|lower }} values" data-filter="#f-{{ name }}">{% endif %}
+  <ul id="f-{{ name }}">{% for value, text, n in rows %}{% set active = is_active(name, value) == 'True' %}{% if loop.index <= 6 or active or filter %}
+    {%- if kind == 'lvl' %}{{ facet_link(name, value, lvl(value), n, active) }}{% elif kind == 'st' %}{{ facet_link(name, value, status_badge(value), n, active) }}{% elif kind == 'lic' %}{{ facet_link(name, value, lic_class(value), n, active) }}{% else %}{{ facet_link(name, value, ('<span class="facet-val">'|safe) ~ text ~ ('</span>'|safe), n, active) }}{% endif %}
+  {%- endif %}{% else %}<li class="muted xs">None in these results</li>{% endfor %}</ul>
+  {% if not filter and rows|length > 6 %}<details class="more-values"><summary class="more small">Show {{ rows|length - 6 }} more</summary><ul>{% for value, text, n in rows[6:] %}{% set active = is_active(name, value) == 'True' %}{% if not active %}{{ facet_link(name, value, ('<span class="facet-val">'|safe) ~ text ~ ('</span>'|safe), n, active) }}{% endif %}{% endfor %}</ul></details>{% endif %}
+</details>
+{% endmacro %}
+
+<h1 class="sr-only">Search</h1>
+<form class="search-hero" action="/search" method="get" role="search">
+  {{ hidden(['q']) }}
+  <div class="searchbar">{{ icon('search', 'ico ico-lg') }}<input type="search" id="q" name="q" value="{{ q }}" aria-label="Search rules" aria-describedby="q-help" autocomplete="off" spellcheck="false" placeholder="Search rules: words, &quot;phrases&quot;, OR, -exclude, field:value"></div>
+  <p class="examples" id="q-help">Try {% for ex in examples %}<a href="/search?{{ {'q': ex}|qs }}">{{ ex }}</a>{% endfor %}<a href="/about#syntax">Syntax help</a></p>
+</form>
+
+<div class="with-facets">
+  <aside class="facets" aria-label="Filters">
+    {% if facets %}
+    {{ facet('level', 'Level', facets.level, 'lvl') }}
+    <details class="facet" open data-facet="logsource"><summary>Log source</summary>
+      {% if facets.logsource|length > 6 %}<input type="search" class="js-only" placeholder="Filter log source" aria-label="Filter log source values" data-filter="#f-logsource">{% endif %}
+      <ul id="f-logsource">{% for x in facets.logsource %}{% if loop.index <= 6 or x.active %}
+        <li><a href="{{ href(page='', product='' if x.active else x['values'].product, category='' if x.active else x['values'].category, service='' if x.active else x['values'].service) }}"{% if x.active %} aria-current="true"{% endif %}><span class="box" aria-hidden="true"></span><span class="facet-val mono">{{ x.label }}</span><span class="n">{{ x.n|num }}</span></a></li>{% endif %}{% else %}<li class="muted xs">None in these results</li>{% endfor %}</ul>
+      {% if facets.logsource|length > 6 %}<details class="more-values"><summary class="more small">Show {{ facets.logsource|length - 6 }} more</summary><ul data-filter-more="#f-logsource">{% for x in facets.logsource[6:] if not x.active %}
+        <li><a href="{{ href(page='', product=x['values'].product, category=x['values'].category, service=x['values'].service) }}"><span class="box" aria-hidden="true"></span><span class="facet-val mono">{{ x.label }}</span><span class="n">{{ x.n|num }}</span></a></li>{% endfor %}</ul></details>{% endif %}
+    </details>
+    {{ facet('tactic', 'ATT&CK tactic', facets.tactic) }}
+    {{ facet('status', 'Status', facets.status, 'st') }}
+    {{ facet('licence', 'Licence', facets.licence, 'lic') }}
+    {{ facet('source', 'Source', facets.source, open=false) }}
+    {% if backends %}
+    <details class="facet"{% if params.backend %} open{% endif %} data-facet="backend"><summary>Converts to</summary><ul>{% for b in backends %}{% set active = params.backend == b %}
+      <li><a href="{{ href(page='', backend='' if active else b) }}"{% if active %} aria-current="true"{% endif %}><span class="box" aria-hidden="true"></span><span class="facet-val">{{ b }}</span><span class="n">mapped</span></a></li>{% endfor %}</ul></details>{% endif %}
+    {{ facet('validation', 'Validation', facets.validation, open=false) }}
+    {% endif %}
+  </aside>
+
+  <section aria-label="Results">
+    {% if chips %}<ul class="chips" aria-label="Active filters">{% for c in chips %}
+      <li class="chip"><b>{{ c.label }}</b> {{ c.value or 'on' }} <a href="{{ c.href }}" aria-label="Remove {{ c.label }} filter">{{ icon('x') }}</a></li>{% endfor %}
+      <li><a class="small" href="/search">Clear all</a></li></ul>{% endif %}
+    {% if error %}<div class="notice notice-bad" role="alert">{{ icon('about') }}<p>{{ error }}</p></div>{% endif %}
+    {% for hint in hints %}<div class="notice" role="status">{{ icon('about') }}<p>{{ hint }}</p></div>{% endfor %}
+
+    {% if rows %}
+    <div class="results-head">
+      <p class="total mb-0"><strong>{{ total|num }} rule{{ 's' if total != 1 }}</strong>{% if families %} in {{ families|num }} famil{{ 'ies' if families != 1 else 'y' }}{% endif %} match{{ 'es' if total == 1 }}{% if documents %} &middot; <span class="muted small">{{ documents|num }} files, {{ (documents - total)|num }} {{ 'was a copy' if documents - total == 1 else 'were copies' }}</span>{% endif %}{% if not params.deprecated or not params.junk %} &middot; <span class="muted small" title="The CLI applies the same defaults (--include-deprecated, --include-junk)">{% if not params.deprecated %}deprecated{% endif %}{% if not params.deprecated and not params.junk %} and {% endif %}{% if not params.junk %}junk{% endif %} rules hidden: <a href="{{ href(page='', deprecated='1', junk='1') }}">show them</a></span>{% endif %}</p>
+      <div class="row">
+        <form action="/search" method="get" class="row">{{ hidden(['sort']) }}
+          <label class="small muted" for="sort">Sort</label><select id="sort" name="sort" data-autosubmit>{% for value, label in sort_labels %}<option value="{{ value }}"{% if effective_sort == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+          <noscript><button class="btn btn-sm" type="submit">Sort</button></noscript></form>
+        <span class="seg" role="group" aria-label="Layout"><a href="{{ href(view='') }}"{% if view == 'cards' %} aria-current="true"{% endif %} title="Cards">{{ icon('list') }}<span class="sr-only">Cards</span></a><a href="{{ href(view='table') }}"{% if view == 'table' %} aria-current="true"{% endif %} title="Table">{{ icon('table') }}<span class="sr-only">Table</span></a></span>
+        <a class="btn" href="/export?{{ export_qs }}">{{ icon('export') }}Export all {{ total|num }}</a>
+      </div>
+    </div>
+
+    <form id="selection" action="/export" method="get"><input type="hidden" name="scope" value="selected"></form>
+    <div id="results">
+    {% if view == 'table' %}
+    <div class="table-wrap search-table"><table class="rows">
+      <thead><tr><th scope="col" class="js-only"><input type="checkbox" id="check-all" aria-label="Select every rule on this page"></th><th scope="col">Rule</th><th scope="col">Log source</th><th scope="col">Level</th><th scope="col">ATT&amp;CK</th><th scope="col" class="num">Sources</th><th scope="col">Licence</th></tr></thead>
+      <tbody>{% for r in rows %}
+        <tr data-key="{{ r.logic_hash }}"><td class="js-only"><input type="checkbox" name="h" value="{{ r.logic_hash }}" form="selection" aria-label="Select {{ r.title or 'rule' }}"></td>
+          <td><a class="open" href="/rule/{{ r.logic_hash[:16] }}"><b>{{ r.title|mark(terms) if r.title else '(untitled)' }}</b></a><span class="sub">{{ r.author or 'unknown author' }}{% if r.modified %} &middot; {{ r.modified }}{% endif %}</span></td>
+          <td class="mono">{{ logsource(r) }}</td><td>{{ lvl(r.level) }}</td>
+          <td><span class="tag-list">{% for tid, name in r.techniques[:2] %}{{ tech(tid, name) }}{% endfor %}</span></td>
+          <td class="num">{{ r.n_sources }}</td><td>{{ lic(r.licence) }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    {% else %}
+    <ul class="results">{% for r in rows %}{{ card(r, terms) }}{% endfor %}</ul>
+    {% endif %}
+    </div>
+
+    <div class="selection-bar is-empty" data-selection-bar role="region" aria-label="Selected rules">
+      <span><strong><span data-selected-count>0</span> selected</strong></span>
+      <button type="button" class="btn btn-sm js-only" data-action="select-page">Select page</button>
+      <button type="button" class="btn btn-sm js-only" data-action="clear-selection">Clear</button>
+      <span class="sep"></span>
+      <button class="btn btn-sm" type="submit" form="selection" formaction="/export/download" name="format" value="navigator">{{ icon('layers') }}Navigator layer</button>
+      <button class="btn btn-sm" type="submit" form="selection">{{ icon('terminal') }}SIEM queries</button>
+      <button class="btn btn-sm btn-primary" type="submit" form="selection" formaction="/export/download" name="format" value="zip">{{ icon('export') }}Download YAML (.zip)</button>
+    </div>
+    {% if pages > 1 %}<nav class="pager" aria-label="Pages">
+      {% if page > 1 %}<a class="btn btn-sm" href="{{ href(page=page - 1) }}" rel="prev">Previous</a>{% else %}<span class="btn btn-sm" aria-disabled="true">Previous</span>{% endif %}
+      <span>Page {{ page|num }} of {{ pages|num }}</span>
+      {% if page < pages %}<a class="btn btn-sm" href="{{ href(page=page + 1) }}" rel="next">Next</a>{% else %}<span class="btn btn-sm" aria-disabled="true">Next</span>{% endif %}
+    </nav>{% endif %}
+
+    {% elif not error %}
+    <div class="no-results">
+      <h2>No rules match{% if q %} "{{ q }}"{% endif %}{% if chips|length > (1 if q else 0) %} with these filters{% endif %}</h2>
+      {% if text_only %}<p>{{ text_only|num }} rule{{ 's' if text_only != 1 }} match the text alone. Remove a filter:</p>
+      {% elif chips %}<p>Remove a filter or try other words.</p>{% else %}<p>Try other words, or one of the examples above.</p>{% endif %}
+      {% if chips and text_only %}<ul class="chips">{% for c in chips %}<li class="chip"><b>{{ c.label }}</b> {{ c.value or 'on' }} <a href="{{ c.href }}" aria-label="Remove {{ c.label }} filter">{{ icon('x') }}</a></li>{% endfor %}</ul>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, lvl, lic, lic_class, when, age_chart, spark, composition %}
+{% block title %}Overview{% endblock %}
+{% block section %}overview{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Overview</h1><p class="lede">Every public Sigma rule from your sources, de-duplicated: one entry per detection logic, with every copy and its licence.</p></div>
+  <div class="actions"><a class="btn" href="/export?scope=all">{{ icon('export') }}Export everything</a><a class="btn btn-primary" href="/search">{{ icon('search') }}Search rules</a></div>
+</div>
+
+{% set enabled = health.synced + health.stale + health.failing %}{% set ok = health.synced + health.stale %}
+{% if health.failing and not ok %}
+<div class="notice notice-warn" role="alert">{{ icon('about') }}<p><strong>No source could be updated.</strong> The last update reached none of your {{ enabled|num }} sources, so the index still holds the rules of the last good sync. <a href="/sources?health=failing">See why</a>, then run <code>sigharvest update</code> again.</p></div>
+{% elif recent.when or ok %}
+<div class="status-line" role="status">{{ icon('changes') }}<p>{% if recent.when %}Updated {{ when(recent.when) }}<span class="sep">&middot;</span>{% endif %}{% if health.failing %}{{ ok|num }} of {{ enabled|num }} sources up to date<span class="sep">&middot;</span><a href="/sources?health=failing">{{ health.failing|num }} skipped &mdash; details</a>{% else %}{{ ok|num }} source{{ 's' if ok != 1 }} up to date{% endif %}
+  {%- if recent.when %}<span class="sep">&middot;</span>{% if recent.first %}first import{% else %}<a href="/changes">{{ recent.counts.new|num }} new, {{ recent.counts.changed|num }} changed, {{ recent.counts.removed|num }} removed</a>{% endif %}{% endif %}</p></div>
+{% endif %}
+
+<section class="yield" aria-label="Your index at a glance">
+  <div class="yield-lead">
+    <p class="yield-l">Unique rules</p>
+    <a class="yield-n" href="/search">{{ c.logic|num }}</a>
+    <p class="yield-d">One entry per detection logic, from {{ c.documents|num }} rule files.{% if recent.counts.new and not recent.first %} <span class="up">+{{ recent.counts.new|num }}</span> in the last update.{% endif %}</p>
+    {{ composition(levels, 'By level') }}
+    {{ spark(trend, ('unchanged' if not trend.delta else '{:+,}'.format(trend.delta)) ~ ' over the last ' ~ trend.n ~ ' updates') if trend }}
+  </div>
+  {{ age_chart(ages) }}
+  <dl class="yield-facts">
+    <div><dt>Copies merged</dt><dd><a href="/sources">{{ copies|num }}</a></dd><dd class="note">files whose logic another rule already has</dd></div>
+    <div><dt>Sources</dt><dd><a href="/sources">{{ enabled|num }}</a></dd><dd class="note">{{ ok|num }} up to date{% if health.failing %}, {{ health.failing|num }} skipped{% endif %}</dd></div>
+    <div><dt>ATT&amp;CK techniques</dt><dd><a href="/coverage">{{ techniques|num }}</a></dd><dd class="note">tagged by at least one rule</dd></div>
+  </dl>
+</section>
+
+<section class="card mb-4" aria-labelledby="h-coverage">
+  <div class="card-head"><h2 id="h-coverage">ATT&amp;CK coverage <span class="sub">rule families per tactic</span></h2><a class="small" href="/coverage">Open the technique matrix</a></div>
+  <div class="card-body">
+    <div class="heat-strip">{% for t in strip %}<a href="{{ t.href }}" title="{{ t.name }}: {{ t.n|num }} rule families" aria-label="{{ t.name }}: {{ t.n|num }} rule families"><span class="blk h{{ t.heat }}"></span><span class="lbl" aria-hidden="true">{{ t.short }}</span><span class="n" aria-hidden="true">{{ t.n|num }}</span></a>{% endfor %}</div>
+    <div class="spread mt-4"><p class="xs muted mb-0">Tags say what a rule is meant to detect, not that it was tested. Click a tactic to search its rules.</p>
+      <span class="legend" aria-hidden="true">fewer <span class="h0"></span><span class="h1"></span><span class="h2"></span><span class="h3"></span><span class="h4"></span><span class="h5"></span> more</span></div>
+  </div>
+</section>
+
+<div class="dash">
+  <div class="stack">
+    <section class="card" aria-labelledby="h-changes">
+      <div class="card-head"><h2 id="h-changes">Recent changes {% if recent.when %}<span class="sub">last update, {{ recent.when|fulltime }}</span>{% endif %}</h2>
+        {% if recent.rows and not recent.first %}<a class="small" href="/changes">All {{ (recent.counts.new + recent.counts.changed + recent.counts.removed)|num }} changes</a>{% endif %}</div>
+      <div class="card-body">
+        {% if recent.first %}<p class="muted small mb-0">The first import indexed {{ c.logic|num }} rules. From the next update on, this card lists what was added, changed upstream or removed.</p>
+        {% elif recent.rows %}<ul class="changes">{% for r in recent.rows %}
+          <li><span class="kind kind-{{ r.kind }}">{{ r.kind }}</span><span>{% if r.href %}<a href="{{ r.href }}">{{ r.title }}</a>{% else %}{{ r.title }}{% endif %}{% if r.meta %}<span class="meta mono">{{ r.meta }}</span>{% endif %}</span>{{ lvl(r.level) }}</li>{% endfor %}</ul>
+        {% else %}<p class="muted small mb-0">No update report yet. <code>sigharvest update</code> writes one each time it runs.</p>{% endif %}
+      </div>
+    </section>
+    <section class="card" aria-labelledby="h-lic">
+      <div class="card-head"><h2 id="h-lic">Licences in your index</h2><a class="small" href="/about#licences">What they mean</a></div>
+      <div class="card-body"><table class="licence-table">{% for x in licences %}
+        <tr><td><a href="/search?{{ {'licence': x.cls}|qs }}">{{ lic_class(x.cls) }}</a></td><td class="small">{{ x.ids|join(', ') if x.ids else 'link only, never copied into exports' }}</td><td class="num">{{ x.n|num }}</td></tr>{% endfor %}
+      </table></div>
+      {% set left_out = c.logic - licences|sum(attribute='n') %}{% if left_out > 0 %}<div class="card-foot">{{ left_out|num }} {{ 'rule is' if left_out == 1 else 'rules are' }} not counted here, as in search: deprecated, unsupported or set aside (broken YAML, test fixtures).</div>{% endif %}
+    </section>
+  </div>
+  <div class="stack">
+    <section class="card" aria-labelledby="h-sources">
+      <div class="card-head"><h2 id="h-sources">Top sources</h2><a class="small" href="/sources">All {{ enabled|num }}</a></div>
+      <div class="card-body">{% if top_sources %}<ul class="bars">{% for r in top_sources %}
+        <li><span><a href="/sources/{{ r.name|urlencode }}">{{ r.name }}</a> {{ lic(r.licence) }}</span><span class="n">{{ r.only|num }} unique</span><span class="bar"><span class="{{ r.w }}"></span></span></li>{% endfor %}</ul>
+        {% else %}<p class="muted small mb-0">Run <code>sigharvest index</code> to compute what each source contributes.</p>{% endif %}</div>
+      <div class="card-foot">Unique = rules whose detection logic is found in no other source.</div>
+    </section>
+    <section class="card" aria-labelledby="h-start">
+      <div class="card-head"><h2 id="h-start">Common starting points</h2></div>
+      <div class="card-body"><ul class="rel-list">{% for x in starts %}
+        <li><a href="{{ x.href }}">{{ x.label }}</a><span class="muted xs">{{ x.n|num }}</span></li>{% endfor %}</ul></div>
+    </section>
+  </div>
+</div>
+{% endblock %}

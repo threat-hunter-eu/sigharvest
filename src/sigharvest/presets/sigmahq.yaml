@@ -1,0 +1,12 @@
+# SigmaHQ core rules only (quick start and tests).
+sources:
+- name: sigmahq-core
+  url: https://github.com/SigmaHQ/sigma.git
+  paths:
+  - rules/**
+  licence: DRL-1.1
+  redistributable: true
+  priority: 10
+  tier: curated
+  notes: 'SigmaHQ core rule set (reference corpus); verified 2026-11-14: stars=11503,
+    pushed=2026-11-13, archived=false; DRL: keep author/reference attribution'

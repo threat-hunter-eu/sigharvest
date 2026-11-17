@@ -1,0 +1,33 @@
+# Splunk Common Information Model (Endpoint, Network_Traffic, Network_Resolution, Web) -> Sigma field names.
+# `process` / `parent_process` are full command lines in CIM, so they are only used for CommandLine /
+# ParentCommandLine, never as a fallback for Image / ParentImage.
+timestamp_field: '_time'
+fields:
+  Image: [process_path]
+  OriginalFileName: [original_file_name]
+  CommandLine: [process]
+  CurrentDirectory: [process_current_directory]
+  ProcessId: [process_id]
+  ProcessGuid: [process_guid]
+  IntegrityLevel: [process_integrity_level]
+  ParentImage: [parent_process_path]
+  ParentCommandLine: [parent_process]
+  ParentProcessId: [parent_process_id]
+  User: [user]
+  Computer: [dest, dvc]
+  Hashes: [process_hash]
+  TargetFilename: [file_path]
+  TargetObject: [registry_path]
+  Details: [registry_value_data]
+  DestinationIp: [dest_ip]
+  DestinationPort: [dest_port]
+  SourceIp: [src_ip]
+  SourcePort: [src_port]
+  Protocol: [transport]
+  QueryName: [query]
+  c-uri: [uri_path, url]
+  cs-uri-query: [uri_query]
+  cs-method: [http_method]
+  sc-status: [status]
+  c-useragent: [http_user_agent]
+  c-ip: [src]

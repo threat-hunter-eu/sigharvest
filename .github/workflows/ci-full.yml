@@ -1,0 +1,152 @@
+# The expensive checks ci.yml leaves out: Python 3.13, pySigma 1 ([convert-legacy]), the phone-width layout in a
+# real browser, Windows (billed at twice the Linux rate) and the acceptance matrix. They run on pull requests to main
+# (not for docs-only changes: ci-docs.yml covers those), daily when the repository variable
+# SIGHARVEST_FULL_CI_ENABLED is `true` (off by default), and on demand. docs/automation.md#what-runs-when.
+name: CI (full)
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+  schedule:
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (py${{ matrix.python }}, ${{ matrix.extra }})
+    if: github.event_name != 'schedule' || vars.SIGHARVEST_FULL_CI_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Python 3.12 with [convert] runs on every push (ci.yml).
+          - python: '3.13'
+            extra: convert
+          # pySigma 1 with all seven backends: the only job that runs the Elastic, OpenSearch and MDE tests
+          # (marked @pytest.mark.backend; skipped on [convert], which is pySigma 2).
+          - python: '3.12'
+            extra: convert-legacy
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          python-version: ${{ matrix.python }}
+      # The dev group includes sigharvest[convert]. convert-legacy conflicts with it, so that job takes the test group
+      # only; tests of targets whose backend is not installed are skipped (conftest.py).
+      - name: Install (${{ matrix.extra }})
+        env:
+          PY: ${{ matrix.python }}
+          EXTRA: ${{ matrix.extra }}
+        run: |
+          if [ "$EXTRA" = convert ]; then
+            uv sync --locked --python "$PY"
+          else
+            uv sync --locked --python "$PY" --no-default-groups --group test --extra "$EXTRA"
+          fi
+      - name: Installed pySigma and backends
+        run: uv run --no-sync python -c "import importlib.metadata as m, sigharvest.conversion as c; print('pysigma', m.version('pysigma'), c.BACKENDS)"
+      - run: uv run --no-sync pytest -n auto
+
+  # The web UI at phone width in a real browser (tests/test_web_layout.py): no page scrolls sideways at 390 px.
+  layout:
+    name: layout (Playwright, 390 px)
+    if: github.event_name != 'schedule' || vars.SIGHARVEST_FULL_CI_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          python-version: '3.12'
+      - run: uv sync --locked --group browser
+      - run: uv run --no-sync playwright install --with-deps chromium
+      - run: uv run --no-sync pytest -n0 -rs tests/test_web_layout.py
+        env:
+          SIGHARVEST_REQUIRE_BROWSER: '1'
+
+  # Windows is supported through WSL only. Natively, the first workspace write must refuse with a message that
+  # points to the WSL instructions (not a traceback), and the portability unit tests must pass.
+  windows:
+    name: windows (WSL refusal + portability tests)
+    if: github.event_name != 'schedule' || vars.SIGHARVEST_FULL_CI_ENABLED == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+          python-version: '3.12'
+      - run: uv sync --locked
+      - run: uv run --no-sync pytest -n0 tests/test_portability.py
+      - name: Native init refuses and names WSL
+        shell: pwsh
+        env:
+          COLUMNS: '250' # one line, so the link is not wrapped
+        run: |
+          $ErrorActionPreference = 'Continue' # the refusal goes to stderr; the exit code is checked below
+          $out = (uv run --no-sync sigharvest init (Join-Path $env:RUNNER_TEMP 'ws sig') 2>&1 | Out-String)
+          $code = $LASTEXITCODE
+          Write-Output $out
+          if ($code -ne 2) { throw "expected exit code 2, got $code" }
+          if ($out -notmatch 'Windows is supported through WSL: https://\S+#windows-use-wsl') { throw 'refusal does not point to the WSL docs' }
+          if ($out -match 'Traceback') { throw 'refusal printed a traceback' }
+          exit 0 # the expected refusal exited 2 and was checked above; do not let pwsh report it as the step result
+
+  acceptance:
+    # Builds the wheel, installs it with [convert] or [convert-legacy] into a clean environment (env -i, empty HOME) and walks through a
+    # new user's first session against local fixture git repositories (no rule downloads; PyPI is still used).
+    name: acceptance (${{ matrix.extra }}, ${{ matrix.deps }} dependencies)
+    if: github.event_name != 'schedule' || vars.SIGHARVEST_FULL_CI_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        deps: [locked, newest]
+        extra: [convert, convert-legacy]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6' # uv itself; bump with the action (checksum known to it)
+      - name: Offline acceptance harness
+        env:
+          ACCEPT_RUNS: ${{ runner.temp }}/acceptance-runs
+          LOCKED: ${{ matrix.deps == 'locked' && '--locked' || '' }}
+          EXTRA: ${{ matrix.extra }}
+        run: bash tests/acceptance/accept.sh sigharvest "$GITHUB_WORKSPACE" --offline --extra "$EXTRA" ${LOCKED:+"$LOCKED"}
+      - name: Upload run folder
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: acceptance-${{ matrix.extra }}-${{ matrix.deps }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/acceptance-runs/*/logs/
+            ${{ runner.temp }}/acceptance-runs/*/steps.tsv
+            ${{ runner.temp }}/acceptance-runs/*/meta.env
+          if-no-files-found: ignore
+          retention-days: 7

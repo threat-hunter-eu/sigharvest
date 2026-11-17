@@ -1,0 +1,11 @@
+# Starts sigharvest-update.service every day at 06:17 (a missed run starts at the next boot).
+[Unit]
+Description=Daily sigharvest update
+
+[Timer]
+OnCalendar=*-*-* 06:17
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target
