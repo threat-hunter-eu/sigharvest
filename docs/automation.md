@@ -335,7 +335,7 @@ estimates are environment variables (nonnegative integers, bytes):
 | `SIGHARVEST_DISK_SYNC_SOURCE_BYTES` | 33554432 (32 MiB) | One fetch: twice this for the snapshot, once for `corpus/<name>`, twice for the clone or staging |
 | `SIGHARVEST_DISK_SYNC_DB_SOURCE_BYTES` | 4194304 (4 MiB) | Database growth per source not synced before (an eighth for the others), charged again for the WAL |
 | `SIGHARVEST_DISK_TEMP_BYTES` | 67108864 (64 MiB) | Python and SQLite temporary files |
-| `SIGHARVEST_DISK_TEST_VERSION_BYTES`, `SIGHARVEST_DISK_RELEASE_MIN_BYTES` | 128 KiB, 64 MiB | Validation results per rule version; minimum release staging |
+| `SIGHARVEST_DISK_TEST_VERSION_BYTES`, `SIGHARVEST_DISK_RELEASE_MIN_BYTES` | 16 KiB, 64 MiB | Validation and conversion results per rule version still to test in the run; minimum release staging |
 
 To try a smaller disk on a larger machine, raise the reserve by the difference: with 334 GiB free,
 `SIGHARVEST_DISK_RESERVE_BYTES=$(( (334 - 14) * 1024**3 ))` behaves like a runner with 14 GiB free.
