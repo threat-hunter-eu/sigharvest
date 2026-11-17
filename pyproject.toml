@@ -81,7 +81,7 @@ convert-legacy = [
 
 [tool.uv]
 conflicts = [[{ extra = "convert" }, { extra = "convert-legacy" }]]
-# Lock-time floors for transitive dependencies with known advisories (SECURITY.md#dependency-advisories).
+# Lock-time floors for transitive dependencies with known advisories (.github/SECURITY.md#dependency-advisories).
 # opentelemetry-api (via fastapi): GHSA-mf5v-w3w3-f6cg / CVE-2026-126360, fixed in 1.45.2.
 constraint-dependencies = ["opentelemetry-api>=1.45.2"]
 
@@ -119,7 +119,7 @@ markers = [
     "e2e: the end-to-end user journey (tests/test_e2e.py); runs in CI",
     "slow: expensive integration or exhaustive contract; excluded by default, included with -m 'slow or not slow'",
     "docs: runs the shell examples of README.md and docs/*.md against an offline fixture workspace (tests/test_docs.py); excluded by default, run with -m docs",
-    "backend(*targets): needs these conversion targets; skipped when their pySigma backend is not installed (conftest.py)",
+    "backend(*targets): needs these conversion targets; skipped when their pySigma backend is not installed (tests/conftest.py)",
 ]
 
 [tool.ruff]

@@ -33,7 +33,7 @@ uv run pre-commit install       # optional: ruff, ruff format and mypy on every 
 uv run ruff check src tests scripts
 uv run ruff format --check src tests scripts
 uv run pytest -n 8
-python3 -I scripts/privacy_gate.py . --allowlist .github/privacy-allowlist.txt --history
+python3 -I scripts/maintainer/privacy_gate.py . --allowlist .github/privacy-allowlist.txt --history
 ```
 
 Or everything CI runs (3.13, [convert-legacy], the docs examples, the layout, the acceptance matrix; only the Windows
@@ -43,7 +43,7 @@ job is left to GitHub) in one command, without spending Actions minutes:
 scripts/ci-full-local.sh            # --quick: only what runs on every push
 ```
 
-**What runs when** ([docs/automation.md](docs/automation.md#what-runs-when)): every push runs `ci.yml` only (ruff,
+**What runs when** ([docs/automation.md](../docs/automation.md#what-runs-when)): every push runs `ci.yml` only (ruff,
 mypy, actionlint, pytest on 3.12 [convert], privacy gate). Python 3.13, [convert-legacy], Windows, the layout, the
 acceptance matrix and the docs examples run on pull requests to main, daily when `SIGHARVEST_FULL_CI_ENABLED` is
 `true`, and from Actions -> Run workflow.
@@ -54,14 +54,14 @@ acceptance matrix and the docs examples run on pull requests to main, daily when
 - `slow` marks expensive integration tests; they are excluded by default. Run everything with
   `uv run pytest -n 8 -m "slow or not slow"`.
 - `tests/acceptance/accept.sh sigharvest --offline` installs the wheel into a clean environment and walks through
-  a new user's first session (CI runs it on pull requests to main; see [tests/acceptance/README.md](tests/acceptance/README.md)).
+  a new user's first session (CI runs it on pull requests to main; see [tests/acceptance/README.md](../tests/acceptance/README.md)).
 - **Shell examples in the docs are tests.** Every ```` ```bash ```` block in README.md and docs/*.md needs
   `<!-- doctest -->` (it runs) or `<!-- doctest: skip REASON -->` on the line above it; `uv run pytest -m docs
   tests/test_docs.py` runs the marked ones against an offline fixture workspace (CI job "docs examples").
 - **New behaviour comes with a test.** Bug fixes come with a test that fails before the fix.
 - **Keep outputs stable.** If your change alters the logic hash, export layout or release files, say so in the PR
   description. A change to the logic hash canonicalisation bumps `LOGIC_VERSION` in `identity.py` and updates
-  [docs/identity.md](docs/identity.md) and the golden tests.
+  [docs/identity.md](../docs/identity.md) and the golden tests.
 - Schema changes go through Alembic: edit `src/sigharvest/models.py`, add a revision on top of
   `src/sigharvest/migrations/versions/0001_baseline.py` and review it.
 - User data (collections) is keyed by stable identifiers (logic hash, rule id). Never point it at `logic_groups`
@@ -76,17 +76,17 @@ This is a public project. Never commit:
 - private rules, or rule content whose licence does not allow redistribution;
 - API keys, tokens, internal hostnames, internal paths or e-mail addresses (commits must use a noreply address).
 
-CI runs the privacy gate (`scripts/privacy_gate.py`, with gitleaks) over the tree and the whole history on every
+CI runs the privacy gate (`scripts/maintainer/privacy_gate.py`, with gitleaks) over the tree and the whole history on every
 push and PR, and fails if it finds any of these. Justified exceptions go to `.github/privacy-allowlist.txt`.
 
 ## Licence
 
-By contributing you agree that your contribution is released under the project's [MIT licence](LICENSE).
+By contributing you agree that your contribution is released under the project's [MIT licence](../LICENSE).
 
 ## Project layout
 
-See [docs/architecture.md](docs/architecture.md) for the pipeline, the dedup algorithm and the code map, and
-[docs/automation.md](docs/automation.md) for the GitHub workflows.
+See [docs/architecture.md](../docs/architecture.md) for the pipeline, the dedup algorithm and the code map, and
+[docs/automation.md](../docs/automation.md) for the GitHub workflows.
 
 ## Code of conduct
 

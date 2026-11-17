@@ -1,4 +1,4 @@
-"""Published screenshots only show rules the project redistributes (scripts/screenshots.py).
+"""Published screenshots only show rules the project redistributes (scripts/maintainer/screenshots.py).
 
 A demo workspace where the canonical copy of a rule comes from a source without a licence (as on the real corpus)
 must never yield that rule for the rule or search shot; a rule without a licence, restricted or with a copyleft
@@ -41,7 +41,7 @@ MIMI = {"title": "Mimikatz Use", "uid": "06d71506-7beb-4f22-8888-e2e5e2ca7fd8", 
 
 
 def _script() -> Any:
-    spec = importlib.util.spec_from_file_location("screenshots", ROOT / "scripts" / "screenshots.py")
+    spec = importlib.util.spec_from_file_location("screenshots", ROOT / "scripts" / "maintainer" / "screenshots.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules["screenshots"] = module

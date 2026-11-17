@@ -1,6 +1,6 @@
 """Suite-wide guards: no network, no git transport other than local files, deterministic hypothesis settings.
 
-Tests must never reach the network (CONTRIBUTING.md). Outbound sockets to anything but localhost are refused and
+Tests must never reach the network (.github/CONTRIBUTING.md). Outbound sockets to anything but localhost are refused and
 recorded; a test that tried one fails at teardown even when the code under test caught the error (ATT&CK and
 schema downloads are wrapped in broad `except` blocks in places). git runs as a subprocess, so the socket guard
 cannot see it: GIT_ALLOW_PROTOCOL=file makes git refuse every remote transport, whatever `-c protocol.*` says.

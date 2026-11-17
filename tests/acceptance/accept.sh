@@ -158,7 +158,7 @@ fi
 BIN="$RUN/bin/$CLI"
 tool_version
 run_step "$CLI --help" -- "$BIN" --help
-# Names that must not appear in public output are checked by the privacy gate (scripts/privacy_gate.py) on the source.
+# Names that must not appear in public output are checked by the privacy gate (scripts/maintainer/privacy_gate.py) on the source.
 
 # --------------------------------------------------------------------------------------------- 3. tool journey
 tool_contract_help        # every documented command/flag exists in --help (warnings)

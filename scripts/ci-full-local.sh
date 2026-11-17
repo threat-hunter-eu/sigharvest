@@ -23,13 +23,13 @@ step() { # step NAME COMMAND...
 legacy() { UV_PROJECT_ENVIRONMENT="$ENVS/py312-legacy" uv run --locked --python 3.12 --no-default-groups --group test --extra convert-legacy "$@"; }
 py313() { UV_PROJECT_ENVIRONMENT="$ENVS/py313" uv run --locked --python 3.13 "$@"; }
 
-uv sync --locked || exit 2
+uv sync --locked --python 3.12 || exit 2
 step "ruff" uv run --no-sync ruff check src tests scripts
 step "ruff format" uv run --no-sync ruff format --check src tests scripts
 step "mypy" uv run --no-sync mypy
 if command -v actionlint >/dev/null; then step "actionlint" actionlint; else echo "actionlint not installed: skipped"; fi
 step "pytest (py3.12, convert)" uv run --no-sync pytest -n auto
-step "privacy gate" python3 -I scripts/privacy_gate.py . --allowlist .github/privacy-allowlist.txt --history
+step "privacy gate" python3 -I scripts/maintainer/privacy_gate.py . --allowlist .github/privacy-allowlist.txt --history
 
 if [ "$QUICK" = 0 ]; then
     step "pytest (py3.13, convert)" py313 pytest -n auto
