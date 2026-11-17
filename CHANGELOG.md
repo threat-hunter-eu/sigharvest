@@ -14,6 +14,16 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 - Tidier repository root: CONTRIBUTING, SECURITY and CODE_OF_CONDUCT moved to `.github/`, the systemd units to
   `docs/deploy/systemd/`, maintainer tooling to `scripts/maintainer/`; a shorter README, with the screenshot tour and
   How it works in `docs/features.md`.
+- Disk admission for `sync`/`update` charges the fetches that can run at once plus the database growth, then admits
+  each fetch when it starts against the space free at that moment; with `update` a fetch that does not fit is deferred
+  to the next run like one past the time budget. New estimate `SIGHARVEST_DISK_SYNC_DB_SOURCE_BYTES`;
+  `SIGHARVEST_GIT_CACHE=drop` deletes a git clone once its source is ingested. A refusal lists each label once.
+- Nightly: frees runner disk first, runs `update --remote-check`, does not cache the git clones (cache key `v2`).
+
+### Fixed
+
+- The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
+  at once (about 190 GB for 1,201 sources).
 
 ## [0.1.0] - 2026-11-17
 

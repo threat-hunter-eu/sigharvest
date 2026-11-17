@@ -11,6 +11,7 @@ import os
 import shutil
 import sqlite3
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -92,7 +93,7 @@ def admit(needs: list[Need]) -> None:
         probe = capacity(need.path)
         groups.setdefault(probe.device, []).append((need, probe))
     for entries in groups.values():
-        labels = ", ".join(n.label for n, _ in entries)
+        labels = ", ".join(dict.fromkeys(n.label for n, _ in entries))
         required = reserve + sum(n.bytes for n, _ in entries)
         available = min(c.bytes for _, c in entries)
         if available < required:
@@ -134,27 +135,60 @@ def database_needs(path: Path, growth: int) -> list[Need]:
     return [Need("database", path, growth, 4), Need("database WAL", Path(str(path) + "-wal"), growth, 4)]
 
 
-def before_sync(ws: Workspace, sources: list[SourceConfig]) -> None:
-    """Budget every submitted source on its own cache/corpus mount, not just workers."""
+def source_needs(ws: Workspace, source: SourceConfig) -> list[Need]:
+    """Peak growth of one source's fetch: retained snapshot, materialised corpus and fetch cache/staging."""
     estimate = setting("SYNC_SOURCE_BYTES", 32 * MIB)
-    needs = []
-    for source in sources:
-        # All adapters now retain immutable acquisitions, including local sources.
-        snapshot = ws.cache / "source-snapshots" / source.name
-        needs.append(Need("source snapshot/blobs", snapshot, estimate * 2, 4096))
-        if source.type == "local":  # Input stays in place; its retained snapshot does not.
-            continue
-        corpus = ws.source_dir(source.name)
-        needs.append(Need("corpus", corpus, estimate, 2048))
-        if source.type == "git":
-            cache = ws.git_repo(source.name)
-        elif source.type == "http":
-            cache = corpus.with_name(corpus.name + ".tmp")
-        else:
-            cache = ws.cache / "non-git" / source.name
-        needs.append(Need("source cache/staging", cache, estimate * 2, 2048))
-    needs += database_needs(ws.db_path, max(size(ws.db_path), len(sources) * estimate))
+    # All adapters now retain immutable acquisitions, including local sources.
+    needs = [Need("source snapshot/blobs", ws.cache / "source-snapshots" / source.name, estimate * 2, 4096)]
+    if source.type == "local":  # Input stays in place; its retained snapshot does not.
+        return needs
+    corpus = ws.source_dir(source.name)
+    needs.append(Need("corpus", corpus, estimate, 2048))
+    if source.type == "git":
+        cache = ws.git_repo(source.name)
+    elif source.type == "http":
+        cache = corpus.with_name(corpus.name + ".tmp")
+    else:
+        cache = ws.cache / "non-git" / source.name
+    needs.append(Need("source cache/staging", cache, estimate * 2, 2048))
+    return needs
+
+
+def before_sync(ws: Workspace, sources: list[SourceConfig], workers: int = 1) -> None:
+    """Admit the fetches that can run at once plus the database growth of the whole sync.
+
+    Every fetch is admitted again when it starts (FetchBudget), against the free space left at that moment, so the
+    upfront check does not charge every source's worst case at once: a corpus of a thousand sources would otherwise
+    ask for hundreds of GiB that are never in use simultaneously. Database growth is charged per source not yet
+    retained (no snapshot): SYNC_DB_SOURCE_BYTES, an eighth of it for sources synced before.
+    """
+    window = sorted(sources, key=lambda c: c.name)[: max(1, workers)]
+    needs = [n for source in window for n in source_needs(ws, source)]
+    per_source = setting("SYNC_DB_SOURCE_BYTES", 4 * MIB)
+    cold = sum(not (ws.cache / "source-snapshots" / c.name).exists() for c in sources)
+    growth = max(64 * MIB, cold * per_source + (len(sources) - cold) * (per_source // 8))
+    needs += database_needs(ws.db_path, growth)
     admit([*needs, *temporary_needs()])
+
+
+class FetchBudget:
+    """Admit each fetch when it starts, against the space free then and the fetches still running (thread-safe)."""
+
+    def __init__(self, ws: Workspace) -> None:
+        self.ws = ws
+        self._lock = threading.Lock()
+        self._held: dict[str, list[Need]] = {}
+
+    def acquire(self, source: SourceConfig) -> None:
+        needs = source_needs(self.ws, source)
+        with self._lock:
+            running = [n for held in self._held.values() for n in held]
+            admit([*running, *needs])
+            self._held[source.name] = needs
+
+    def release(self, name: str) -> None:
+        with self._lock:
+            self._held.pop(name, None)
 
 
 def before_test(ws: Workspace, s: Session, versions: int, schema_cache: Path | None = None) -> None:
