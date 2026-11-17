@@ -437,6 +437,23 @@ def test_sync_admission_charges_running_fetches_not_every_source(tmp_path: Path,
     assert str(refused.value).count("corpus") == 1  # labels are listed once
 
 
+def test_test_stage_admission_is_sized_by_versions_to_test(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A resumed validation on the full corpus was refused for ~180k live versions it would not touch."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from sigharvest import space
+
+    ws = Workspace(tmp_path)
+    s = Session(create_engine(f"sqlite:///{tmp_path / 'test.db'}"))
+    monkeypatch.setattr(space, "capacity", lambda path: space.Capacity(1, 2 * 1024**3, None))
+    space.before_test(ws, s, 1_000, tmp_path / "schemas")
+    space.before_test(ws, s, 40_000, tmp_path / "schemas")  # 2 x 625 MiB + reserve fits 2 GiB at 16 KiB a version
+    with pytest.raises(space.SpaceError):
+        space.before_test(ws, s, 180_000, tmp_path / "schemas")
+    s.close()
+
+
 def test_fetch_budget_counts_running_fetches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from sigharvest import space
 

@@ -500,7 +500,8 @@ def _run_stage(
     live = list(s.scalars(select(RuleVersion.id).where(RuleVersion.id.in_(live_version_ids())).order_by(RuleVersion.id)))
     if only is not None:
         live = [vid for vid in live if vid in only]
-    space.before_test(ws, s, min(len(live), limit or len(live)), ws.cache / "sigma-specification" / SPEC_COMMIT)
+    schema_cache = ws.cache / "sigma-specification" / SPEC_COMMIT
+    space.before_test(ws, s, 0, schema_cache)  # schema download; result growth is admitted once the work is known
     schemas = load_schemas(ws) if stage == "validate" else {}
     tags = None
     if stage == "validate" and live:
@@ -512,6 +513,8 @@ def _run_stage(
     key_report: dict[str, Any] = {}
     done = _done(s, stage, schemas, key_report, retry_resource_failures, skipped_tags=skipped_tags) if resume else set()
     todo_ids = [vid for vid in live if vid not in done][: limit or None]
+    # Only the versions this run writes results for: a resumed stage on a large corpus has most of them done.
+    space.before_test(ws, s, len(todo_ids), schema_cache)
     params: dict[str, Any] = {"resume": resume, "workers": workers, "limit": limit, "spec_commit": SPEC_COMMIT, **recovery, **key_report}
     if only is not None:
         params["selection"] = "subset"

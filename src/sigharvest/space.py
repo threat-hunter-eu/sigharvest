@@ -194,7 +194,8 @@ class FetchBudget:
 def before_test(ws: Workspace, s: Session, versions: int, schema_cache: Path | None = None) -> None:
     """Budget result detail, indexes and WAL before schema downloads or result writes."""
     db = database_path(s, ws.db_path)
-    growth = max(64 * MIB, versions * setting("TEST_VERSION_BYTES", 128 * 1024))
+    # Measured on the full corpus: about 600 bytes of test results per version; 16 KiB leaves room for conversions.
+    growth = max(64 * MIB, versions * setting("TEST_VERSION_BYTES", 16 * 1024))
     admit([Need("schema cache", schema_cache or ws.cache / "sigma-specification", 8 * MIB, 16), *database_needs(db, growth), *temporary_needs()])
 
 
