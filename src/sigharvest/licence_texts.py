@@ -309,15 +309,30 @@ def notice_section(ws: Any, sources: dict[str, str | None], configs: dict[str, A
     return "\n".join(out) + "\n"
 
 
+def shipped_licences(credits: list[dict[str, Any]]) -> dict[str, str | None]:
+    """Source -> licence of the rules whose text ships, from attribution entries (`source`, `licence`, `drl_origin`).
+
+    Credits are one entry per rule and a rule may carry a narrower licence than its source (export.effective_licence),
+    so one source can ship under several: they are all listed (joined with AND, sorted), none is dropped, so every
+    licence text and notice travels with the rules."""
+    found: dict[str, set[str]] = {}
+    for c in credits:
+        found.setdefault(str(c.get("source")), set())
+        if c.get("licence"):
+            found[str(c.get("source"))].add(str(c["licence"]))
+    shipped: dict[str, str | None] = {name: " AND ".join(sorted(ids)) or None for name, ids in found.items()}
+    if any(c.get("drl_origin") for c in credits):
+        shipped["rules derived from DRL rules"] = "DRL-1.1"
+    return shipped
+
+
 def for_credits(s: Any, credits: list[dict[str, Any]]) -> tuple[str, list[tuple[str, bytes]]]:
     """(NOTICE.md section, LICENSES/ files) for the rules described by `credits` (attribution entries with
     `source`, `licence` and optional `drl_origin`), from the session's workspace."""
     from sigharvest.source_metadata import source_configs, workspace_of
 
     ws, configs = workspace_of(s), source_configs(s)
-    shipped: dict[str, str | None] = {str(c.get("source")): c.get("licence") for c in credits}
-    if any(c.get("drl_origin") for c in credits):
-        shipped["rules derived from DRL rules"] = "DRL-1.1"
+    shipped = shipped_licences(credits)
     return notice_section(ws, shipped, configs), bundle(ws, shipped, configs)
 
 
