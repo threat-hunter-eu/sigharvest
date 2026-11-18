@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import math
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from sigharvest.licensing import licence_class, normalise
 from sigharvest.models import LogicGroup, Source, SyncLog, UpdateRun
+from sigharvest.models import utcnow as now
 
 STALE_AFTER = timedelta(days=30)
 
@@ -137,10 +138,6 @@ def licence_counts(s: Session) -> list[dict[str, Any]]:
 
 def _naive(t: datetime | None) -> datetime | None:
     return t.replace(tzinfo=None) if t is not None and t.tzinfo is not None else t
-
-
-def now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def source_health(s: Session) -> dict[str, dict[str, Any]]:

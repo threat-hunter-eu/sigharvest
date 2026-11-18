@@ -78,46 +78,6 @@ def sync_tree(root: Path) -> None:
         sync_directory(path)
 
 
-@contextmanager
-def exclusive_directory(out: Path) -> Iterator[Path]:
-    """Publish a complete private tree and confirm durability before returning.
-
-    An interrupted build can leave a private sibling, never a partial final name.
-    Cleanup owns only the staging inode. After rename, even a failed parent fsync
-    retains the published result. The caller must finish and close SQLite first.
-    Destination parents must be controlled by the caller throughout the operation.
-    """
-    out = out.absolute()
-    if os.name != "posix":
-        raise PublicationError("durable restore publication requires POSIX directory fsync")
-    if out.exists() or out.is_symlink():
-        raise FileExistsError(errno.EEXIST, "publication destination exists")
-    private_directories(out.parent)
-    stage = Path(tempfile.mkdtemp(prefix=f".{out.name}.restore-", dir=out.parent))
-    owned = stage.stat()
-    try:
-        yield stage
-        sync_tree(stage)
-        rename_no_replace(stage, out)
-        try:
-            # Also persist newly created ancestors and their directory entries.
-            for parent in out.parents:
-                sync_directory(parent)
-        except OSError as exc:
-            raise PublicationError(
-                "Complete destination published and retained, but directory fsync failed; durability is unconfirmed. "
-                "Inspect the destination before retrying with a new name."
-            ) from exc
-    finally:
-        try:
-            current = stage.lstat()
-        except FileNotFoundError:
-            pass
-        else:
-            if (current.st_dev, current.st_ino) == (owned.st_dev, owned.st_ino):
-                shutil.rmtree(stage)
-
-
 def build_time(epoch: int | None = None) -> str:
     """Explicit epoch wins over SOURCE_DATE_EPOCH; otherwise use the current UTC time."""
     if epoch is None and "SOURCE_DATE_EPOCH" in os.environ:
