@@ -22,6 +22,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- The web UI froze every request while a `POST /export/download` waited for the export slot or built its file: the POST handler ran the whole build on the event loop (the GET handler already used a worker thread).
 - The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
