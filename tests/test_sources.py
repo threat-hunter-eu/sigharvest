@@ -55,3 +55,13 @@ def test_redistributable_strings_are_normalised_fail_closed(value, expected) -> 
     from sigharvest.config import SourceConfig
 
     assert SourceConfig(name="x", url="https://example.org/x.git", redistributable=value).redistributable == expected
+
+
+def test_priority_zero_survives_a_save_and_load(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from sigharvest.config import SourceConfig, Workspace, load_sources, save_sources
+
+    ws = Workspace(tmp_path / "ws")
+    cfg = SourceConfig(name="first", url="https://github.com/a/b.git", priority=0)
+    assert cfg.to_dict()["priority"] == 0
+    save_sources(ws, [cfg])
+    assert load_sources(ws)[0].priority == 0
