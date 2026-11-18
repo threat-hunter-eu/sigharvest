@@ -65,6 +65,27 @@ def test_bounded_dedupe_matches_full_inventory(corpus, top: int) -> None:
         assert asdict(dedupe(s, top=top)) == full
 
 
+def test_bounded_dedupe_picks_the_canonical_copy_of_the_full_report(tmp_path: Path) -> None:
+    ws = Workspace(tmp_path)
+    save_sources(ws, [])
+    factory = open_db(ws, migrate=True)
+    with factory() as s:
+        a = Source(name="a", type="local", url="a", priority=50)
+        b = Source(name="b", type="local", url="b", priority=50)
+        s.add_all([a, b])
+        s.flush()
+        for source, content_hash, first_seen in ((b, "1", datetime(2026, 1, 1)), (a, "2", datetime(2026, 2, 1))):
+            version = RuleVersion(content_hash=content_hash, logic_hash="logic", rule_id="r", kind="rule", title="T", raw="title: fixture")
+            s.add(version)
+            s.flush()
+            s.add(Occurrence(version_id=version.id, source_id=source.id, path="x.yml", file_hash=content_hash, present=True, first_seen=first_seen))
+        s.commit()
+    with factory() as s:
+        # Equal priorities: the full report (and the index) take the source name, not the first one seen.
+        assert dedupe(s).logic_groups[0]["canonical"]["source"] == "a"
+        assert dedupe(s, top=1).logic_groups[0]["canonical"]["source"] == "a"
+
+
 def test_stats_cache_is_readonly_current_and_rolls_back(corpus, monkeypatch) -> None:
     ws, factory = corpus
     with factory() as s:
