@@ -22,6 +22,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- A source whose rules ship under more than one licence (a rule's own `license:` narrower than its source's) got the notice and licence text of only one of them in export and release bundles; the top-level `LICENSES.zip` of a release also kept only the copyleft pack's licence for such a source. Every licence now travels with its text.
 - The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
