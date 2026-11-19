@@ -11,7 +11,6 @@ import logging
 import sys
 
 import typer
-from rich.console import Console
 from rich.markup import escape
 
 from sigharvest.cli.lazy import LazyHelpGroup
@@ -69,14 +68,18 @@ def main() -> None:
     try:
         app()
     except Cancelled:
-        Console(stderr=True, soft_wrap=True).print("Cancelled; completed work is retained")
+        from sigharvest.cli.common import SafeConsole
+
+        SafeConsole(stderr=True, soft_wrap=True).print("Cancelled; completed work is retained")
         raise SystemExit(143) from None
     except Exception as exc:  # noqa: BLE001 - classifier re-raises every unexpected error
         _handle_error(exc)
 
 
 def _error(markup: str) -> None:
-    Console(stderr=True, soft_wrap=True).print(f"[red]error:[/] {markup}")
+    from sigharvest.cli.common import SafeConsole
+
+    SafeConsole(stderr=True, soft_wrap=True).print(f"[red]error:[/] {markup}")
 
 
 def _handle_error(error: Exception) -> None:

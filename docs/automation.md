@@ -39,6 +39,10 @@ has the CI split.
   publish, deploy, push, or parse untrusted repositories, and `action.yml`) has `enable-cache: false`, so a cache
   entry written by another run cannot reach them and they never write one. `tests/test_workflows.py` enforces this,
   the uv pin, SHA pins and no `${{ }}` in `run:` scripts.
+- Third-party actions (anything outside `actions/*` and `github/*`) must also be listed, with the exact SHA, in
+  `.github/allowed-actions.txt`, a copy of the organisation's Actions allow-list. The `privacy` job of `ci.yml`
+  (`scripts/maintainer/allowed_actions.py`) fails otherwise, so a Dependabot bump of one of them stays red until a
+  maintainer has allowed the new SHA there and in the organisation settings.
 
 ### Variables and secrets
 

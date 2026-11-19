@@ -95,6 +95,10 @@ def test_export_zip_csv_and_all_copies(tmp_path: Path, monkeypatch: pytest.Monke
     assert bad.exit_code == 2 and not (tmp_path / "x.csv").exists()
     empty = runner.invoke(app, ["export", "no-such-rule-anywhere", "--format", "jsonl", "--out", str(tmp_path / "empty.jsonl")])
     assert empty.exit_code == 1 and "no rules were exported" in empty.output
+    assert "validated yet" not in empty.output
+    # Nothing validated yet (as after `init --from-release`): --validation matches nothing, and the error says why.
+    unvalidated = runner.invoke(app, ["export", "--validation", "ok", "--format", "csv", "--out", str(tmp_path / "ok.csv")])
+    assert unvalidated.exit_code == 1 and "sigharvest test --stage validate" in unvalidated.output, unvalidated.output
 
 
 def test_exact_correlation_context_and_stale_results(tmp_path):
