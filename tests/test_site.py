@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import subprocess
+import time
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from sigharvest import collections as col
 from sigharvest.models import LogicGroup
 from sigharvest.release import build as build_release
 from sigharvest.site import SiteError, build_site, collections_snapshot, site_command, tokens
-from sigharvest.site.build import HERE, safe_url, shard_key
+from sigharvest.site.build import HERE, licence_links, safe_url, shard_key
 from tests.helpers import reseal, set_licence
 from tests.test_collections import _setup
 
@@ -434,3 +435,15 @@ def test_hostile_release_error_is_printed_without_markup_or_controls(tmp_path: P
     res = CliRunner().invoke(app, ["site", "build", str(tmp_path / "out"), "--release", str(rel)])
     assert res.exit_code == 2, res.output
     assert "\x1b" not in res.output and "�[2J[link=https://evil.example]fix[/link] [/x]" in res.output
+
+
+def test_licence_links_is_linear_on_a_long_unknown_id() -> None:
+    # A letter, a long digit run and one out-of-class character backtracked quadratically (about 10 s at 20k digits).
+    start = time.perf_counter()
+    assert licence_links("a" + "1" * 20_000 + "!") == [{"id": "a" + "1" * 20_000 + "!", "url": None}]
+    assert time.perf_counter() - start < 1.0
+    # The id shape that gets an SPDX link is unchanged: a letter first, a digit somewhere after it.
+    for i in ("Foo-2.0", "x2", "a.1+b"):
+        assert licence_links(i) == [{"id": i, "url": f"https://spdx.org/licenses/{i}.html"}]
+    for i in ("1BSD", "a1!", "Foo-only", "LicenseRef-x"):
+        assert licence_links(i) == [{"id": i, "url": None}]
