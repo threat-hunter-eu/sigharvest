@@ -77,11 +77,40 @@ def search_cmd(
             raise typer.BadParameter("--profile works on unique rules; leave out --all-copies")
     if all_copies and (licence or licence_class):
         raise typer.BadParameter("--licence and --licence-class work on unique rules; leave out --all-copies")
+    if all_copies:
+        # Copies are listed by title with the per-copy filters only: refuse what cannot apply instead of ignoring it.
+        unsupported = [
+            name
+            for name, given in (
+                ("--technique", technique),
+                ("--tactic", tactic),
+                ("--validation", validation),
+                ("--backend", backend),
+                ("--min-sources", min_sources),
+                ("--flag", flag),
+                ("--include-junk", include_junk),
+                ("--sort", sort != "relevance"),
+                ("--offset", offset),
+            )
+            if given
+        ]
+        if unsupported:
+            raise typer.BadParameter(f"{', '.join(unsupported)} work on unique rules; leave out --all-copies")
     with user_errors(), open_session() as s:
         if all_copies:
             from sigharvest.query import search
 
-            f = query_filters(product=product, category=category, service=service, tag=tag, source=source, status=status_, level=level, text=query)
+            f = query_filters(
+                product=product,
+                category=category,
+                service=service,
+                tag=tag,
+                source=source,
+                status=status_,
+                level=level,
+                text=query,
+                include_deprecated=include_deprecated,
+            )
             rows = search(s, f, limit=limit)
             if json_output:
                 copies = [

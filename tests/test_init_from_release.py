@@ -304,3 +304,12 @@ def test_a_source_named_like_a_licence_file_gets_its_own_folder(monkeypatch: pyt
     assert "LICENSES/MIT.txt.source/LICENSE" in files and "LICENSES/INDEX.md.source/LICENSE" in files
     assert "LICENSES/plain/LICENSE" in files and files.count("LICENSES/MIT.txt") == 1 and files.count("LICENSES/INDEX.md") == 1
     assert not any(f.startswith(("LICENSES/MIT.txt/", "LICENSES/INDEX.md/")) for f in files)
+
+
+@pytest.mark.parametrize("path", ["/etc/cron.d/x", "//etc/cron.d/x", "///etc/cron.d/x"])
+def test_a_rooted_rule_path_becomes_relative(path: str) -> None:
+    """PurePosixPath keeps exactly two leading slashes as a "//" root, which used to survive as "///etc/...":
+    every rooted path must come back relative, the resolve guard in _write_rule is only the second layer."""
+    from sigharvest.release_bootstrap import _safe_rel
+
+    assert _safe_rel(path, "fallback.yml") == "etc/cron.d/x.yml"

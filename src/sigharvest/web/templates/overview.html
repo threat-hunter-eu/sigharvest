@@ -12,7 +12,7 @@
 {% if health.failing and not ok %}
 <div class="notice notice-warn" role="alert">{{ icon('about') }}<p><strong>No source could be updated.</strong> The last update reached none of your {{ enabled|num }} sources, so the index still holds the rules of the last good sync. <a href="/sources?health=failing">See why</a>, then run <code>sigharvest update</code> again.</p></div>
 {% elif recent.when or ok %}
-<div class="status-line" role="status">{{ icon('changes') }}<p>{% if recent.when %}Updated {{ when(recent.when) }}<span class="sep">&middot;</span>{% endif %}{% if health.failing %}{{ ok|num }} of {{ enabled|num }} sources up to date<span class="sep">&middot;</span><a href="/sources?health=failing">{{ health.failing|num }} skipped &mdash; details</a>{% else %}{{ ok|num }} source{{ 's' if ok != 1 }} up to date{% endif %}
+<div class="status-line" role="status">{{ icon('changes') }}<p>{% if recent.when %}Updated {{ when(recent.when) }}<span class="sep">&middot;</span>{% endif %}{% if health.failing %}{{ ok|num }} of {{ enabled|num }} sources up to date<span class="sep">&middot;</span><a href="/sources?health=failing">{{ health.failing|num }} skipped - details</a>{% else %}{{ ok|num }} source{{ 's' if ok != 1 }} up to date{% endif %}
   {%- if recent.when %}<span class="sep">&middot;</span>{% if recent.first %}first import{% else %}<a href="/changes">{{ recent.counts.new|num }} new, {{ recent.counts.changed|num }} changed, {{ recent.counts.removed|num }} removed</a>{% endif %}{% endif %}</p></div>
 {% endif %}
 

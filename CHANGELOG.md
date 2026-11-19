@@ -11,6 +11,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Changed
 
+- README, getting started and the install hints of the CLI and web UI install the PyPI package (`uv tool install "sigharvest[convert]"`); installing from Git stays as the development option.
 - Tidier repository root: CONTRIBUTING, SECURITY and CODE_OF_CONDUCT moved to `.github/`, the systemd units to
   `docs/deploy/systemd/`, maintainer tooling to `scripts/maintainer/`; a shorter README, with the screenshot tour and
   How it works in `docs/features.md`.
@@ -22,12 +23,49 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- A `type: http` source with an `auth` token refuses a plain `http://` URL instead of sending the token in cleartext.
+- A release rule path starting with exactly two slashes (`//etc/x`) kept its root after sanitising; it now
+  becomes relative like any other rooted path (the write guard still refused it).
+- `%` and `_` in the tag, backend and flag search filters (CLI, web UI and API) acted as LIKE wildcards, so `--backend %` matched every converted rule and `_` matched any character; they now match literally.
+- Static site: its own 404 page (Pages showed GitHub's), keyboard-reachable scrollable rule text, underlined links in running text and no nested landmark on rule pages (axe: 0 serious/critical).
+- `priority: 0` in sources.yaml was rewritten as the default 50 whenever sources.yaml was saved (`sources add/enable/disable`, `discover`).
+- `dedupe --top N` named a different canonical copy than the full report and the index when two sources had the same priority (it ordered by first seen instead of source name and content hash).
+- `sigharvest runs` without a subcommand printed JSON instead of the table `runs list` shows.
+- `search --all-copies` silently ignored `--technique`, `--tactic`, `--validation`, `--backend`, `--min-sources`, `--flag`, `--include-junk`, `--sort` and `--offset`, and always listed deprecated copies. It now refuses the options it cannot apply and hides deprecated copies unless `--include-deprecated` is given.
+- `lint` reported the wrong line for every document after the first when a file started with `---` (and it matched only a bare `---`, not `--- # comment`); lines now come from each document's position in the file.
+- The web UI froze every request while a `POST /export/download` waited for the export slot or built its file: the POST handler ran the whole build on the event loop (the GET handler already used a worker thread).
+- A rule that repeats one large anchored YAML value through many aliases is quarantined at ingest (scalar text after
+  alias expansion is capped at 2 MiB per document); it used to pass the node limit and stall or exhaust memory in
+  the logic hash, `index`, `check` and conversion.
 - The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
   with most of them done; they now charge only the versions still to test, 16 KiB each (measured: about 600 bytes).
 - `export --format zip --out .../...zip` named the zip's top folder `..`, so every member was `../...`; a name of
   dots only now gives `rules`. A zip member whose collision retry (`_<logic_hash[8:16]>`) was taken was written twice.
+- An on-demand conversion slot whose idle worker had died (OOM killer, operator) was put back broken, so every
+  second rule-page conversion failed until the server restarted; the slot now starts a fresh worker.
+- `site`: a licence id with a long digit run no longer stalls the build (the licence-link pattern backtracked quadratically).
+- A rule page whose `condition:` line held a long digit run (for example `1111...1x`) took minutes to render: the
+  condition highlighter rescanned the run from every digit. It is now scanned once.
+- Terminal escape sequences (ESC/C0/C1 controls) in upstream rule tags, descriptions, file paths, detection keys,
+  converted queries and error messages reached the terminal; the CLI now prints every control character as U+FFFD,
+  and `site build` escapes Rich markup in release errors.
+- The `template_title` check took quadratic time on a title full of unclosed `$(` or `{{`, so one hostile rule could
+  stall `index`, `update` or `lint` for hours; it is now linear, with the same matches.
+- Report and changes text scrubbing no longer backtracks quadratically on a long URL-like token (such as a rule title
+  made of repeated `http://`), which could stall `update` reports, `changes` and site builds.
+- `init --from-release` printed an estimate of hours for the semantic hashes ("about 3h33m left") because their
+  clock started with the download; it now starts with the hashing.
+- An export with `--validation` in a workspace that has no validation results yet (`init --from-release`) only said
+  "no rule matches these filters"; it now says that nothing is validated and to run `sigharvest test --stage validate`.
+- The weekly discovery workflow updated the first open PR from a branch named `automation/discover`, which could be
+  a fork PR; it now picks only a PR from the repository itself and otherwise opens its own.
+- Docs: the `--with-dependencies` example exported the whole corpus and always failed (limit of 100 selected
+  rules); measured `init --from-release` timings for the full nightly pack.
+- A rule page or `/api/rule` for a third-party rule with thousands of selections and a long `1 of x* or ...` condition
+  could use gigabytes of memory and minutes of CPU in the plain-language summary; the condition parser now stops at
+  256 tokens or 256 selection references and shows the rule's own description.
 
 ## [0.1.0] - 2026-11-17
 

@@ -207,3 +207,20 @@ def test_fast_yaml_expanded_alias_budget_and_python_fallback(monkeypatch):
     monkeypatch.setattr(yaml, "__with_libyaml__", False)
     assert "expanded node limit" in load_documents(raw)[0].error
     assert load_documents(b"date: 2026-10-31\n")[0].data == {"date": "2026-10-31"}
+
+
+def test_aliases_of_a_large_scalar_are_bounded_by_expanded_size(monkeypatch):
+    from sigharvest import documents
+
+    big = "A" * (64 * 1024)
+    aliases = ", ".join(["*a"] * 100)
+    detection = f"detection:\n  selection:\n    CommandLine|contains: [{aliases}]\n  condition: selection\n"
+    raw = f'title: t\nbig: &a "{big}"\nlogsource: {{product: windows}}\n{detection}'.encode()
+    assert len(raw) < documents.MAX_FILE_BYTES
+    for libyaml in (True, False):
+        monkeypatch.setattr(yaml, "__with_libyaml__", libyaml)
+        doc = load_documents(raw)[0]
+        assert doc.kind is None
+        assert "expanded scalar size limit" in (doc.error or "")
+    small = b"title: t\nv: &v x\nlogsource: {product: windows}\ndetection: {s: {a: [*v, *v]}, condition: s}\n"
+    assert load_documents(small)[0].kind == "rule"

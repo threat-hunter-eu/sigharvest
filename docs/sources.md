@@ -46,7 +46,7 @@ sources:
 | `copyright` | optional: the publisher's copyright line (`Copyright (c) 2022 Example Labs`), written into release and export `NOTICE.md`; the lines in the source's own LICENSE / NOTICE files are used too |
 | `priority` | Lower number wins when the same rule appears in several sources (default 50) |
 | `enabled` | `false` keeps the entry but skips it |
-| `auth` | Name of an environment variable holding an access token (never stored) |
+| `auth` | Name of an environment variable holding an access token (never stored); an `http` source sends it only over HTTPS |
 | `urls`, `files` | Explicit HTTPS files/pages (`http-files`, `html`) or dataset files (`huggingface`) |
 | `notes`, `tier` | Free text / informational |
 
