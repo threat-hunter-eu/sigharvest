@@ -21,6 +21,10 @@ MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_YAML_DEPTH = 64
 MAX_YAML_NODES = 100_000
 MAX_EFFECTIVE_FILE_BYTES = 16 * 1024 * 1024
+# Scalar text of one document after alias expansion. Without aliases a document's scalar
+# characters never exceed its byte length, so this never rejects an alias-free file; it
+# stops one large anchored scalar being repeated by thousands of cheap aliases.
+MAX_EXPANDED_SCALAR_BYTES = MAX_FILE_BYTES
 _ACTION_HINT = re.compile(rb"\baction\b")
 
 
@@ -102,12 +106,17 @@ class _FastIngestLoader(FastSigmaSafeLoader):
 def _check_expanded_nodes(node: Any) -> None:
     pending = [(node, 1)]
     count = 0
+    scalar_bytes = 0
     while pending:
         current, depth = pending.pop()
         count += 1
         if depth > MAX_YAML_DEPTH or count > MAX_YAML_NODES:
             raise ValueError("YAML aliases exceed depth or expanded node limit")
-        if isinstance(current, yaml.MappingNode):
+        if isinstance(current, yaml.ScalarNode):
+            scalar_bytes += len(current.value)
+            if scalar_bytes > MAX_EXPANDED_SCALAR_BYTES:
+                raise ValueError("YAML aliases exceed expanded scalar size limit")
+        elif isinstance(current, yaml.MappingNode):
             pending.extend((child, depth + 1) for pair in current.value for child in pair)
         elif isinstance(current, yaml.SequenceNode):
             pending.extend((child, depth + 1) for child in current.value)

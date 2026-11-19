@@ -63,7 +63,8 @@ class SourceConfig:
     def to_dict(self) -> dict[str, Any]:
         """The entry as written to sources.yaml (empty optional fields left out)."""
         d = asdict(self)
-        out = {k: v for k, v in d.items() if v not in (None, [], False) or k in ("paths", "enabled")}
+        # `v not in (None, [], False)` would also drop `priority: 0`, because 0 == False.
+        out = {k: v for k, v in d.items() if (v is not None and v is not False and v != []) or k in ("paths", "enabled")}
         out.pop("redistributable", None)
         if self.redistributable is not None:
             # Written as `redistribute: yes|no|unknown`, the field name and values shared with suriharvest.

@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import subprocess
+import time
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from sigharvest import collections as col
 from sigharvest.models import LogicGroup
 from sigharvest.release import build as build_release
 from sigharvest.site import SiteError, build_site, collections_snapshot, site_command, tokens
-from sigharvest.site.build import HERE, safe_url, shard_key
+from sigharvest.site.build import HERE, licence_links, safe_url, shard_key
 from tests.helpers import reseal, set_licence
 from tests.test_collections import _setup
 
@@ -101,6 +102,7 @@ def test_site_from_workspace(tmp_path: Path) -> None:
     for rel in (
         "index.html",
         "rule.html",
+        "404.html",
         "attribution.html",
         "ATTRIBUTION.md",
         "sitemap.xml",
@@ -114,6 +116,12 @@ def test_site_from_workspace(tmp_path: Path) -> None:
     meta = json.loads((root / "data/meta.json").read_text())
     assert meta["rules"] == 5 and meta["collections"] == [["ransom note", "ransom-note", 1]]
     assert len(list((root / "r").glob("*.html"))) == 5
+    # unknown paths get the site's own 404 page (absolute links, not indexed); scrollable rule text is keyboard-reachable
+    missing = (root / "404.html").read_text()
+    assert 'name="robots" content="noindex"' in missing and 'href="/rules/"' in missing
+    shown = [p.read_text() for p in (root / "r").glob("*.html")]
+    assert all(p.count('tabindex="0"') == p.count("<pre ") for p in shown)
+    assert not any("<aside" in p for p in shown)
     page = (root / "c/ransom-note.html").read_text()
     assert "&lt;b&gt;bold&lt;/b&gt;" in page and "&lt;i&gt;why&lt;/i&gt;" in page and "<b>bold" not in page
     sitemap = (root / "sitemap.xml").read_text()
@@ -183,7 +191,7 @@ def test_hostile_text_is_neutralised_in_static_html_and_json(tmp_path: Path) -> 
     page = next((root / "r").glob("*.html")).read_text()
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in page and "&lt;/code&gt;&lt;/pre&gt;&lt;script&gt;alert(5)" in page
     # the embed snippet shown for copying never carries rule text
-    snippet = re.search(r'id="embed-[0-9a-f]+"><code>(.*?)</code>', page, re.S)
+    snippet = re.search(r'id="embed-[0-9a-f]+"[^>]*><code>(.*?)</code>', page, re.S)
     assert snippet and "alert" not in snippet.group(1)
     for p in (root / "data").rglob("*.json"):
         raw = p.read_text(encoding="utf-8")
@@ -410,3 +418,32 @@ def test_project_pages_base_path_links_resolve(tmp_path: Path) -> None:
         assert path.startswith("/sigharvest/") and not path.startswith("/sigharvest/sigharvest/"), link
         target = root / path.removeprefix("/sigharvest/")
         assert (target / "index.html" if path.endswith("/") else target).is_file(), link
+
+
+def test_hostile_release_error_is_printed_without_markup_or_controls(tmp_path: Path) -> None:
+    rel = tmp_path / "rel"
+    rel.mkdir()
+    (rel / "manifest.json").write_text(json.dumps({"format": "\x1b[2J[link=https://evil.example]fix[/link] [/x]"}))
+    with gzip.open(rel / "rules.jsonl.gz", "wt") as fh:
+        fh.write("")
+    (rel / "ATTRIBUTION.md").write_text("fixture")
+    reseal(rel)
+    app = typer.Typer()
+    site_app = typer.Typer()
+    app.add_typer(site_app, name="site")
+    site_app.command("build")(site_command)
+    res = CliRunner().invoke(app, ["site", "build", str(tmp_path / "out"), "--release", str(rel)])
+    assert res.exit_code == 2, res.output
+    assert "\x1b" not in res.output and "�[2J[link=https://evil.example]fix[/link] [/x]" in res.output
+
+
+def test_licence_links_is_linear_on_a_long_unknown_id() -> None:
+    # A letter, a long digit run and one out-of-class character backtracked quadratically (about 10 s at 20k digits).
+    start = time.perf_counter()
+    assert licence_links("a" + "1" * 20_000 + "!") == [{"id": "a" + "1" * 20_000 + "!", "url": None}]
+    assert time.perf_counter() - start < 1.0
+    # The id shape that gets an SPDX link is unchanged: a letter first, a digit somewhere after it.
+    for i in ("Foo-2.0", "x2", "a.1+b"):
+        assert licence_links(i) == [{"id": i, "url": f"https://spdx.org/licenses/{i}.html"}]
+    for i in ("1BSD", "a1!", "Foo-only", "LicenseRef-x"):
+        assert licence_links(i) == [{"id": i, "url": None}]
