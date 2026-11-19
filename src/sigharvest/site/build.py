@@ -421,7 +421,8 @@ def licence_links(expression: str | None) -> list[dict[str, str | None]]:
     whole = bundled_id(expression.strip())
     out: list[dict[str, str | None]] = []
     for i in [whole] if whole else spdx_ids(expression):
-        known = bundled_id(i) or (i if re.fullmatch(r"[A-Za-z][A-Za-z0-9.+-]*\d[A-Za-z0-9.+-]*", i) else None)
+        # ASCII digits only (SPDX ids); no digit before the first one, so a long digit run matches in linear time.
+        known = bundled_id(i) or (i if re.fullmatch(r"[A-Za-z][A-Za-z.+-]*[0-9][A-Za-z0-9.+-]*", i) else None)
         out.append({"id": i, "url": safe_url(link(known)) if known else None})
     return out
 

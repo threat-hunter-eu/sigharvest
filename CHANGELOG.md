@@ -26,6 +26,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
   with most of them done; they now charge only the versions still to test, 16 KiB each (measured: about 600 bytes).
+- `site`: a licence id with a long digit run no longer stalls the build (the licence-link pattern backtracked quadratically).
 
 ## [0.1.0] - 2026-11-17
 
