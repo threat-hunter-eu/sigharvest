@@ -28,6 +28,9 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 - `search --all-copies` silently ignored `--technique`, `--tactic`, `--validation`, `--backend`, `--min-sources`, `--flag`, `--include-junk`, `--sort` and `--offset`, and always listed deprecated copies. It now refuses the options it cannot apply and hides deprecated copies unless `--include-deprecated` is given.
 - `lint` reported the wrong line for every document after the first when a file started with `---` (and it matched only a bare `---`, not `--- # comment`); lines now come from each document's position in the file.
 - The web UI froze every request while a `POST /export/download` waited for the export slot or built its file: the POST handler ran the whole build on the event loop (the GET handler already used a worker thread).
+- A rule that repeats one large anchored YAML value through many aliases is quarantined at ingest (scalar text after
+  alias expansion is capped at 2 MiB per document); it used to pass the node limit and stall or exhaust memory in
+  the logic hash, `index`, `check` and conversion.
 - The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
