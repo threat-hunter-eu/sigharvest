@@ -42,6 +42,12 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   stall `index`, `update` or `lint` for hours; it is now linear, with the same matches.
 - Report and changes text scrubbing no longer backtracks quadratically on a long URL-like token (such as a rule title
   made of repeated `http://`), which could stall `update` reports, `changes` and site builds.
+- `init --from-release` printed an estimate of hours for the semantic hashes ("about 3h33m left") because their
+  clock started with the download; it now starts with the hashing.
+- An export with `--validation` in a workspace that has no validation results yet (`init --from-release`) only said
+  "no rule matches these filters"; it now says that nothing is validated and to run `sigharvest test --stage validate`.
+- Docs: the `--with-dependencies` example exported the whole corpus and always failed (limit of 100 selected
+  rules); measured `init --from-release` timings for the full nightly pack.
 
 ## [0.1.0] - 2026-11-17
 
