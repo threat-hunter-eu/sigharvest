@@ -22,6 +22,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- A release rule path starting with exactly two slashes (`//etc/x`) kept its root after sanitising; it now
+  becomes relative like any other rooted path (the write guard still refused it).
 - The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
