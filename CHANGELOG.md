@@ -41,6 +41,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
   with most of them done; they now charge only the versions still to test, 16 KiB each (measured: about 600 bytes).
+- Upstream file paths, rule titles and error text can no longer add Markdown (links, images, headings) to SKIPPED.md
+  or the run report: links to source files are percent-encoded and report text is escaped.
 - `export --format zip --out .../...zip` named the zip's top folder `..`, so every member was `../...`; a name of
   dots only now gives `rules`. A zip member whose collision retry (`_<logic_hash[8:16]>`) was taken was written twice.
 - An on-demand conversion slot whose idle worker had died (OOM killer, operator) was put back broken, so every

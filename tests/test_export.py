@@ -768,3 +768,29 @@ def test_csv_cells_never_start_a_formula(value: object, expected: str) -> None:
     from sigharvest.export import csv_cell
 
     assert csv_cell(value) == expected
+
+
+def test_hostile_source_path_cannot_add_markdown_to_skipped_md(tmp_path: Path) -> None:
+    import zipfile
+
+    from sigharvest.export import export_zip
+
+    hostile = "rules/x{}>\n\n[Updated rule pack](https://attacker.example)\n<.yml"
+    ws = workspace(tmp_path, make_repo(tmp_path))
+    assert sync_all(ws)[0].status == "ok"
+    with open_db(ws, migrate=True)() as s:
+        rebuild(s)
+        # As if the source were on GitHub and an upstream file had a name crafted to close the autolink.
+        for src in s.scalars(select(Source)):
+            src.url = "https://github.com/someone/rules.git"
+        for i, occ in enumerate(s.scalars(select(Occurrence)).all()):
+            occ.path = hostile.format(i)
+        s.commit()
+        export_yaml(s, select_groups(s, "family", None, GroupFilters(), None), tmp_path / "out")
+        assert export_zip(s, select_groups(s, "family", None, GroupFilters(), None), tmp_path / "linked.zip") == (0, 5)
+        with zipfile.ZipFile(tmp_path / "linked.zip") as zf:
+            zipped = zf.read("linked/SKIPPED.md").decode()
+    for text in ((tmp_path / "out" / "SKIPPED.md").read_text(encoding="utf-8"), zipped):
+        body = text.split("\n\n")[-1].splitlines()  # the list after the heading and the explanation
+        assert len(body) == 5 and all(line.startswith("- ") and line.endswith(">") and line.count("<") == 1 for line in body)
+        assert "[Updated rule pack]" not in text and "\n<" not in text
