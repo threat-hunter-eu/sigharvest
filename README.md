@@ -44,7 +44,7 @@ sigharvest init ~/sigma && cd ~/sigma && sigharvest update   # first run: about 
 sigharvest serve                                             # http://127.0.0.1:8799
 ```
 
-Prefer the terminal: `sigharvest search mimikatz`, `sigharvest export lsass --format splunk --out lsass.spl`.
+Prefer the terminal: `sigharvest search mimikatz`, `sigharvest export lsass --product windows --format splunk --out lsass.spl`.
 Step by step, other SIEMs and the full nightly corpus: [Getting started](https://github.com/threat-hunter-eu/sigharvest/blob/main/docs/getting-started.md).
 
 ## Highlights
