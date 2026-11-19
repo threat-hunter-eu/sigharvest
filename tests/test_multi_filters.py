@@ -66,3 +66,30 @@ def test_typo_in_an_inline_filter_is_refused_with_a_suggestion(query, message):
 )
 def test_text_with_colons_and_valid_filters_still_work(query):
     parse_query(query)
+
+
+@pytest.mark.parametrize(
+    ("field", "column", "stored", "value"),
+    [
+        ("tag", "tags", ["detection.emerging-threats"], "detection.emerging_threats"),
+        ("tag", "tags", ["attack.t1059"], "attack.t1%"),
+        ("flag", "quality_flags", ["autogenXtemplate"], "autogen_template"),
+        ("flag", "quality_flags", ["no_level"], "%"),
+        ("backend", "converts", ["splunk"], "spl_nk"),
+        ("backend", "converts", ["splunk"], "%"),
+    ],
+)
+def test_like_filters_treat_wildcards_as_literal_text(field, column, stored, value):
+    """`%` and `_` in a tag, flag or backend filter match themselves, not any text or any character."""
+    import sqlite3
+
+    predicates: list[tuple[str, str]] = []
+    _, _, params = _base(None, GroupFilters(**{field: value}), predicates=predicates)
+    clause = dict(predicates)[field]
+    db = sqlite3.connect(":memory:")
+    db.execute("CREATE TABLE logic_groups (tags TEXT, converts TEXT, quality_flags TEXT)")
+    db.execute(f"INSERT INTO logic_groups ({column}) VALUES (?)", (json.dumps(stored),))
+    sql = "SELECT count(*) FROM logic_groups g WHERE " + clause.replace(f":{field}", "?")
+    assert db.execute(sql, (params[field],)).fetchone()[0] == 0
+    db.execute(f"UPDATE logic_groups SET {column} = ?", (json.dumps([value]),))
+    assert db.execute(sql, (params[field],)).fetchone()[0] == 1
