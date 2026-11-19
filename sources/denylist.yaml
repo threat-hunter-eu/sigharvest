@@ -4,3 +4,48 @@
 # Too large: ~71,000 files (an 18-minute clone, over the snapshot byte/file budget) for ~250 rules that may not be
 # redistributed (proprietary licence); removed from extended.yaml on 2026-11-16.
 - cyberdudebivash__cyberdudebivash-threat-intel-platform
+# Removed from extended.yaml on 2026-11-19 (nightly sync failures, release pack rules-2026-11-19.2).
+# Repository deleted or made private (HTTP 404, `git ls-remote` asks for credentials since 2026-11-17).
+- limerencece__malwaredetector
+- raoof128__ptadd
+- raoof128__sdesr
+- nocoolusername__intel-to-improvements
+- raf-tsc__sigma
+# Too large: the repository tree lists more than 500,000 files (sync refuses it every night); no licence and ~77% of its
+# logic is a copy of SigmaHQ/hayabusa.
+- rulezet__rulezet-rulesets
+# No Sigma rules left at the listed paths (folder deleted upstream, or files in another dialect / a .txt bundle).
+- petsku01__theory
+- agent-defense__parallax
+- hyperi-io__dfe-engine
+- cybereason-public__owlsm
+- brandefense__ioc
+# Only junk: every rule is a test fixture, an auto-generated stub or template, or a wrapped SIEM query, so the release
+# pack never contained one of them (checked with a full local sync on 2026-11-19).
+- kennethhelmuth__threat-intelligence
+- wrg-11__wrg-sigma-rules
+- mohamedyoussef-cloud__ai-powered-autonomous-threat-hunting-platform
+- mukeshkumarc-0309__sigmaforge
+- ping2a__sigmazero
+- adibirzu__oci-observability-tools
+- alinurettin__xsoar-sigma-transpiler
+- binalyze__tigma
+- cawalch__sigma-engine
+- certeu__droid
+- cosai-oasis__ws2-defenders
+- cpt-ferna02__aven
+- crowdalert__sigmars
+- dfirtnt__sigmasimtest
+- dragnet-dev__dragnet
+- elieroc__elastalert3
+- franski6325__militiacelestial
+- gh0st-la6z-exe__null-sigma
+- girdav01__aitf
+- grafana__pysigma-backend-loki
+- haghfizzuddin__detection-rules
+- kanga-heera__mechanic
+- khalidalidistinct__red-report-engine
+- noxxa7705__sigma-builder
+- peleduri__practical-guide-to-securing-ai-agents
+- slotrust__code_warriors_aegix_soc
+- wislest__detection-rule-backtester
