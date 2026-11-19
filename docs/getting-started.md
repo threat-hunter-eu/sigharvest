@@ -17,16 +17,19 @@ This page takes you from nothing to a searchable, deduplicated Sigma index in on
 Requirements: **Python 3.12 or newer**, **Git**, and either [uv](https://docs.astral.sh/uv/) or
 [pipx](https://pipx.pypa.io/). Linux and macOS are supported; on Windows use WSL.
 
-<!-- doctest: skip network (installs from GitHub) -->
+<!-- doctest: skip network (installs from PyPI) -->
 ```bash
 # with uv (recommended)
-uv tool install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"
+uv tool install "sigharvest[convert]"
 
 # or with pipx
-pipx install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"
+pipx install "sigharvest[convert]"
 
 sigharvest --version
 ```
+
+The development version (the `main` branch) installs from Git:
+`uv tool install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"`.
 
 Both put a `sigharvest` command on your PATH in its own isolated environment. The `convert` extra installs the
 pySigma 2 query backends for Splunk, Loki and SQLite. For Elasticsearch/ES|QL, OpenSearch or Microsoft 365

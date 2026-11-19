@@ -17,7 +17,7 @@
   {{ m.licence_block(r) }}
   {% if r.sources|length > 1 %}<p class="muted">Also carried by: {{ r.sources[:12]|join(', ') }}{% if r.sources|length > 12 %} and {{ r.sources|length - 12 }} more{% endif %}.</p>{% endif %}
 </div>
-<aside>
+<div class="side">
   <h2>Details</h2>
   <dl class="kv">
     <dt>log source</dt><dd><code>{{ r.logsource.product or '-' }}{% if r.logsource.category %} / {{ r.logsource.category }}{% endif %}{% if r.logsource.service %} / {{ r.logsource.service }}{% endif %}</code></dd>
@@ -37,11 +37,11 @@
   {% endif %}
   <h2>Embed</h2>
   <details><summary>rule card for an article</summary>
-  <pre class="yaml snippet" id="embed-{{ r.lid }}"><code>&lt;div class="sigharvest-rule" data-rule="{{ r.lid }}"&gt;&lt;a href="{{ base }}rule.html?l={{ r.lid }}"&gt;Sigma rule {{ r.lid }}&lt;/a&gt;&lt;/div&gt;
+  <pre class="yaml snippet" id="embed-{{ r.lid }}" tabindex="0" aria-label="Embed snippet"><code>&lt;div class="sigharvest-rule" data-rule="{{ r.lid }}"&gt;&lt;a href="{{ base }}rule.html?l={{ r.lid }}"&gt;Sigma rule {{ r.lid }}&lt;/a&gt;&lt;/div&gt;
 &lt;script src="{{ base }}static/embed.js" defer&gt;&lt;/script&gt;</code></pre>
   <p><button class="btn" type="button" data-copy="embed-{{ r.lid }}">copy snippet</button></p>
   </details>
-</aside>
+</div>
 </div>
 </article>
 {% endblock %}

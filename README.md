@@ -35,15 +35,16 @@ update; your data never leaves the machine.
 
 ## Quickstart
 
-You need Python 3.12+, Git and [uv](https://docs.astral.sh/uv/).
+You need Python 3.12+, Git and [uv](https://docs.astral.sh/uv/) (or [pipx](https://pipx.pypa.io/): `pipx install "sigharvest[convert]"`).
 
 <!-- doctest -->
 ```bash
-uv tool install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"
+uv tool install "sigharvest[convert]"
 sigharvest init ~/sigma && cd ~/sigma && sigharvest update   # first run: about 10 minutes
 sigharvest serve                                             # http://127.0.0.1:8799
 ```
 
+Development version from Git: `uv tool install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"`.
 Prefer the terminal: `sigharvest search mimikatz`, `sigharvest export lsass --product windows --format splunk --out lsass.spl`.
 Step by step, other SIEMs and the full nightly corpus: [Getting started](https://github.com/threat-hunter-eu/sigharvest/blob/main/docs/getting-started.md).
 

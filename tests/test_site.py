@@ -101,6 +101,7 @@ def test_site_from_workspace(tmp_path: Path) -> None:
     for rel in (
         "index.html",
         "rule.html",
+        "404.html",
         "attribution.html",
         "ATTRIBUTION.md",
         "sitemap.xml",
@@ -114,6 +115,12 @@ def test_site_from_workspace(tmp_path: Path) -> None:
     meta = json.loads((root / "data/meta.json").read_text())
     assert meta["rules"] == 5 and meta["collections"] == [["ransom note", "ransom-note", 1]]
     assert len(list((root / "r").glob("*.html"))) == 5
+    # unknown paths get the site's own 404 page (absolute links, not indexed); scrollable rule text is keyboard-reachable
+    missing = (root / "404.html").read_text()
+    assert 'name="robots" content="noindex"' in missing and 'href="/rules/"' in missing
+    shown = [p.read_text() for p in (root / "r").glob("*.html")]
+    assert all(p.count('tabindex="0"') == p.count("<pre ") for p in shown)
+    assert not any("<aside" in p for p in shown)
     page = (root / "c/ransom-note.html").read_text()
     assert "&lt;b&gt;bold&lt;/b&gt;" in page and "&lt;i&gt;why&lt;/i&gt;" in page and "<b>bold" not in page
     sitemap = (root / "sitemap.xml").read_text()
@@ -183,7 +190,7 @@ def test_hostile_text_is_neutralised_in_static_html_and_json(tmp_path: Path) -> 
     page = next((root / "r").glob("*.html")).read_text()
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in page and "&lt;/code&gt;&lt;/pre&gt;&lt;script&gt;alert(5)" in page
     # the embed snippet shown for copying never carries rule text
-    snippet = re.search(r'id="embed-[0-9a-f]+"><code>(.*?)</code>', page, re.S)
+    snippet = re.search(r'id="embed-[0-9a-f]+"[^>]*><code>(.*?)</code>', page, re.S)
     assert snippet and "alert" not in snippet.group(1)
     for p in (root / "data").rglob("*.json"):
         raw = p.read_text(encoding="utf-8")

@@ -643,9 +643,9 @@ def _build_site(
     prefix = next((k for k in (1, 2, 3) if detail_bytes / 16**k <= 200_000), 3)
     detail_shards = len({h[:prefix] for h in by_hash})
     static_assets = sorted(p for p in (HERE / "static").iterdir() if p.is_file())
-    # index.html, rule.html, attribution.html, ATTRIBUTION.md, NOTICE.md, sitemap.xml, changes.json, feed.xml,
+    # index.html, rule.html, 404.html, attribution.html, ATTRIBUTION.md, NOTICE.md, sitemap.xml, changes.json, feed.xml,
     # data/meta.json, data/attack.json, .well-known/security.txt
-    fixed = 11
+    fixed = 12
     other = len(static_assets) + fixed + len(shards) + len(facets) + math.ceil(len(indexed) / CHUNK) + detail_shards + len(cols)
     must = {r["logic_hash"] for c in cols for it in c["items"] if (r := it["row"]) is not None}
     room = min(max_pages, max_files - other) - len(must)
@@ -802,6 +802,8 @@ def _build_site(
     top = [details[r["logic_hash"]] for r in indexed[:30] if r["logic_hash"] in details]
     page("index.html", "index.html", stats=stats_ctx, collections=meta["collections"], top=top, top_products=meta["top_products"], levels=LEVELS[1:])
     page("rule.html", "dynamic.html")
+    # GitHub Pages (and Workers static assets) serve 404.html for unknown paths; links are absolute, so it works at any depth.
+    page("404.html", "404.html")
     sources = [
         {"name": x.get("name"), "url": safe_url(x.get("url")), "licence": x.get("licence"), "rules": x.get("rules"), "commit": x.get("commit")}
         for x in src.manifest.get("sources", [])
