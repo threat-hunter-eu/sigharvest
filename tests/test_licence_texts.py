@@ -216,3 +216,11 @@ def test_every_redistributable_catalogue_licence_has_a_bundled_text() -> None:
             if lic != "null" and licence_class(lic) in ("permissive", "copyleft"):
                 missing |= {i for i in licence_texts.licence_ids(lic) if licence_texts.text(i) is None}
     assert not missing, sorted(missing)
+
+
+@pytest.mark.parametrize("expression", ["x\\1", "MIT OR a\\q", "a\\n"])
+def test_linked_inserts_rule_licence_ids_literally(expression):
+    # A rule's `license:` is third-party text: a backslash in it must not be read as a re.sub template.
+    out = licence_texts.linked(expression)
+    for i in licence_texts.spdx_ids(expression):
+        assert f"[{i}](" in out
