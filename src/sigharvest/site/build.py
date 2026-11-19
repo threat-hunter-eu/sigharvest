@@ -966,11 +966,12 @@ def site_command(
     ),
 ) -> None:
     """Build the static rules site (search, rule pages, collections, embeddable cards). Writes files only."""
-    from rich.console import Console
+    from rich.markup import escape
 
+    from sigharvest.cli.common import SafeConsole
     from sigharvest.config import find_workspace
 
-    console = Console(soft_wrap=True)  # paths and the preview command stay on one line in pipes
+    console = SafeConsole(soft_wrap=True)  # paths and the preview command stay on one line in pipes
     ws = find_workspace()
     try:
         if save_collections is not None:
@@ -991,8 +992,6 @@ def site_command(
                 console.print("not publishing an incomplete corpus (--allow-incomplete to publish it anyway)")
                 raise typer.Exit(1)
         if release is None and ws.db_path.exists():
-            from rich.markup import escape
-
             from sigharvest.runs import publish_refusal
 
             with _ro_session(ws.db_path) as s:
@@ -1018,7 +1017,7 @@ def site_command(
             build_epoch=build_epoch,
         )
     except SiteError as exc:
-        console.print(f"[red]{exc}[/]")
+        console.print(f"[red]{escape(str(exc))}[/]")
         raise typer.Exit(2) from exc
     console.print(st.summary(), markup=False)
     console.print(f"preview: python -m http.server -d {out} 8000, then open http://127.0.0.1:8000{base_url}", markup=False)

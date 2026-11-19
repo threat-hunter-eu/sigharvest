@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from sigharvest.conversion import BACKENDS
 from sigharvest.errors import SigharvestError
@@ -364,4 +365,5 @@ def export_download(request: Request, web: WebDep) -> Response:
 async def export_download_post(request: Request, web: WebDep) -> Response:
     form = await request.form()
     params = Params(form)
-    return download_response(web, params, str(params.get("format") or "zip"), hashes=selected_hashes(form))
+    # The build waits for the export slot and then converts and zips; like the GET handler it must not run on the event loop.
+    return await run_in_threadpool(download_response, web, params, str(params.get("format") or "zip"), hashes=selected_hashes(form))

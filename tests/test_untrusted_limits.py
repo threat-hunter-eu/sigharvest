@@ -87,3 +87,52 @@ def test_materialise_caps_the_number_of_rule_files(tmp_path: Path, monkeypatch: 
     ws.root.mkdir()
     with pytest.raises(sync.SyncError, match="more than 100 rule files"):
         sync.sync_git(SourceConfig(name="evil", url="file://" + str(repo)), ws, None)
+
+
+def test_cli_console_prints_controls_as_replacement_characters():
+    """Rich drops only BEL/BS/VT/FF/CR: ESC in a tag, path, error or query must not reach the terminal."""
+    import io
+
+    from rich.table import Table
+
+    from sigharvest.cli.common import SafeConsole
+
+    out = io.StringIO()
+    console = SafeConsole(file=out, force_terminal=True, color_system=None, soft_wrap=True)
+    console.print("tag \x1b]0;pwned\x1b\\ \x9b2J", markup=False)
+    table = Table()
+    table.add_column("where")
+    table.add_row("src:rules/x\x1b[2J.yml\tok")
+    console.print(table)
+    console.print("[red]error:[/] multi\nline")
+    assert "\x1b" not in out.getvalue() and "\x9b" not in out.getvalue()
+    assert "tag �]0;pwned�\\ �2J" in out.getvalue() and "x�[2J.yml" in out.getvalue() and "error: multi\nline" in out.getvalue()
+
+
+def test_show_does_not_print_terminal_controls_from_upstream_rules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from typer.testing import CliRunner
+
+    from sigharvest.cli import app
+    from sigharvest.index import rebuild
+    from sigharvest.service import open_db, sync_all
+    from tests.test_pipeline import commit, git, workspace
+
+    repo = tmp_path / "upstream"
+    (repo / "rules").mkdir(parents=True)
+    git(repo, "init", "-q", "-b", "main")
+    hostile = RULE.format(n="h", uid=UIDS[1]).replace(
+        "level: low", 'level: low\ndescription: "d\\e[2J"\nauthor: "a\\e]0;t\\e\\\\"\ntags: ["attack.t1059", "x\\e[1A\\e[2K"]\n'
+    )
+    (repo / "rules" / "h\x1b[2J.yml").write_text(hostile)
+    commit(repo, "init")
+    ws = workspace(tmp_path, repo)
+    assert sync_all(ws)[0].status == "ok"
+    with open_db(ws, migrate=True)() as s:
+        rebuild(s)
+        s.commit()
+    monkeypatch.setenv("SIGHARVEST_HOME", str(ws.root))
+    res = CliRunner().invoke(app, ["show", UIDS[1], "--copies"])
+    assert res.exit_code == 0, res.output
+
+    assert "Test h" in res.output and "x�[1a�[2k" in res.output and "d�[2J" in res.output and "h�[2J.yml" in res.output
+    assert "\x1b" not in res.output

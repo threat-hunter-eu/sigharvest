@@ -410,3 +410,20 @@ def test_project_pages_base_path_links_resolve(tmp_path: Path) -> None:
         assert path.startswith("/sigharvest/") and not path.startswith("/sigharvest/sigharvest/"), link
         target = root / path.removeprefix("/sigharvest/")
         assert (target / "index.html" if path.endswith("/") else target).is_file(), link
+
+
+def test_hostile_release_error_is_printed_without_markup_or_controls(tmp_path: Path) -> None:
+    rel = tmp_path / "rel"
+    rel.mkdir()
+    (rel / "manifest.json").write_text(json.dumps({"format": "\x1b[2J[link=https://evil.example]fix[/link] [/x]"}))
+    with gzip.open(rel / "rules.jsonl.gz", "wt") as fh:
+        fh.write("")
+    (rel / "ATTRIBUTION.md").write_text("fixture")
+    reseal(rel)
+    app = typer.Typer()
+    site_app = typer.Typer()
+    app.add_typer(site_app, name="site")
+    site_app.command("build")(site_command)
+    res = CliRunner().invoke(app, ["site", "build", str(tmp_path / "out"), "--release", str(rel)])
+    assert res.exit_code == 2, res.output
+    assert "\x1b" not in res.output and "�[2J[link=https://evil.example]fix[/link] [/x]" in res.output
