@@ -25,13 +25,23 @@ _mutex = threading.Lock()
 _secret = re.compile(r"token|password|secret|authorization|credential|api.?key", re.I)
 
 
+# One linear pass: each URL token is consumed once and tested in the callback. A pattern that requires @?# inside
+# the token backtracks over the rest of it at every "http://", which is quadratic on untrusted titles.
+_url = re.compile(r"https?://[^\s<>\"']*", re.I)
+_url_any = re.compile(r"https?://[^\s<>\"']+", re.I)
+_url_sensitive = re.compile(r"[@?#]")
+
+
+def _redact_sensitive(match: re.Match[str]) -> str:
+    return "[url redacted]" if _url_sensitive.search(match[0]) else match[0]
+
+
 def scrub(text: str, *, redact_urls: bool = True) -> str:
     """Remove configured secrets, credential assignments, URLs and terminal controls."""
     values = sorted({v for k, v in os.environ.items() if _secret.search(k) and v}, key=len, reverse=True)
     for value in values:
         text = text.replace(value, "[redacted]")
-    pattern = r"https?://[^\s<>\"']+" if redact_urls else r"https?://[^\s<>\"']*[@?#][^\s<>\"']*"
-    text = re.sub(pattern, "[url redacted]", text, flags=re.I)
+    text = _url_any.sub("[url redacted]", text) if redact_urls else _url.sub(_redact_sensitive, text)
     text = re.sub(r"(?i)\b(?:bearer|basic)\s+\S+", "[authorization redacted]", text)
     text = re.sub(r"(?i)\b(token|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^\s,;]+", r"\1=[redacted]", text)
     return re.sub(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]", "\ufffd", text)
