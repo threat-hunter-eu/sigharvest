@@ -52,7 +52,7 @@ JUNK = (
 _FOREIGN_KEYS = {"splunk_spl", "chronicle_yaral", "_splunk_search", "_yaral_rule", "spl", "kql_query", "yaral", "eql_query"}
 _SYNTHETIC = re.compile(r"\b(?:scale\s+)?variant\s+\d{2,}\b|\bmarker\s+\d{2,}\b|\bvariant\s+\d+\s+marker\b", re.I)
 _TEST_TITLE = re.compile(r"^\s*(?:\[test\]|test\s*[-:]|template\b|example\b|sample rule\b|my detection rule\b|rule\s+\d+\s*$|todo\b)", re.I)
-_TEMPLATE = re.compile(r"\$\([^)]*\)|\{\{[^}]*\}\}|<[a-z_ .|-]{3,40}>", re.I)
+_PLACEHOLDER = re.compile(r"<[a-z_ .|-]{3,40}>", re.I)
 _AUTOGEN = re.compile(r"auto-?generated\s+(?:stub|rule|placeholder)|\(auto-?generated\)|^\s*\[auto\]", re.I)
 FIXTURE_PATH = re.compile(r"(?:^|/)(?:tests?|fixtures?|testdata|test_data|examples?|templates?|golden|samples?/negative|negative)(?:/|$)", re.I)
 _HASH = re.compile(r"^[0-9a-f]{32}$|^[0-9a-f]{40}$|^[0-9a-f]{64}$", re.I)
@@ -117,7 +117,7 @@ def classify(data: dict[str, Any], paths: list[str], upstream_deprecated: bool =
         flags.add("test_fixture")
     if _AUTOGEN.search(text):
         flags.add("autogen_stub")
-    if _TEMPLATE.search(title):
+    if _template_title(title):
         flags.add("template_title")
     vals: list[str] = []
     _values(detection, vals)
@@ -151,6 +151,28 @@ def classify(data: dict[str, Any], paths: list[str], upstream_deprecated: bool =
     if upstream_deprecated:
         flags.add("upstream_deprecated")
     return sorted(flags)
+
+
+def _template_title(title: str) -> bool:
+    """True for a ``$(...)``, ``{{...}}`` or ``<placeholder>`` in the title, in linear time.
+
+    Same matches as the earlier regex alternatives ``$(`` ``[^)]*`` ``)`` and ``{{`` ``[^}]*`` ``}}``, which
+    rescanned to the end of the title from every unclosed opener: quadratic, so a hostile title of a few
+    hundred KB cost minutes of CPU.
+    """
+    start = title.find("$(")
+    if start >= 0 and ")" in title[start + 2 :]:
+        return True
+    pos = 0
+    while (start := title.find("{{", pos)) >= 0:
+        # Every "{{" before the next "}" shares that "}": the match needs it to begin "}}".
+        close = title.find("}", start + 2)
+        if close < 0:
+            break
+        if title.startswith("}}", close):
+            return True
+        pos = close + 1
+    return bool(_PLACEHOLDER.search(title))
 
 
 def is_junk(flags: list[str] | None) -> bool:

@@ -43,6 +43,12 @@ def slug(text: str | None, limit: int = 60) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "_", text or "").strip("_")[:limit] or "rule"
 
 
+def safe_stem(name: str) -> str:
+    """The zip's top folder: [A-Za-z0-9._-], at most 80 long; a name of dots only (".", "..") becomes "rules"."""
+    stem = re.sub(r"[^A-Za-z0-9._-]", "_", name)[:80]
+    return "rules" if not stem.strip(".") else stem
+
+
 def md(text: Any) -> str:
     return re.sub(r"[\x00-\x1f|<>\[\]`*_]", " ", str(text or "")).strip()[:200]
 
@@ -125,7 +131,10 @@ def write_zip(
             folder = f"{cls}/{slug(licence, 30)}/" if mode == "split" else ""
             rel = folder + rel_path(g, layout)
             if rel in seen:
-                rel = rel.removesuffix(".yml") + f"_{g.logic_hash[8:16]}.yml"
+                base = rel.removesuffix(".yml") + f"_{g.logic_hash[8:16]}"
+                rel, n = f"{base}.yml", 2
+                while rel in seen:
+                    rel, n = f"{base}_{n}.yml", n + 1
             seen.add(rel)
             data = v.raw.encode("utf-8", "surrogatepass")
             total += len(data)

@@ -285,11 +285,11 @@ def _unique_rel_path(g: LogicGroup, seen: set[Path]) -> Path:
 def export_zip(s: Session, groups: Iterator[LogicGroup], out: Path, *, include_private: bool = False) -> tuple[int, int]:
     """The same zip as the web UI's Export page (export_zip.write_zip; top folder = the file name without .zip).
     Returns (rules copied, rules only linked in SKIPPED.md); fixed timestamps, so equal input gives equal bytes."""
-    from sigharvest.export_zip import write_zip
+    from sigharvest.export_zip import safe_stem, write_zip
 
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_name(out.name + ".partial")
-    stem = re.sub(r"[^A-Za-z0-9._-]", "_", out.name.removesuffix(".zip"))[:80] or "rules"
+    stem = safe_stem(out.name.removesuffix(".zip"))
     try:
         with tmp.open("wb") as fh:
             result = write_zip(s, groups, fh, stem, include_private=include_private)

@@ -504,8 +504,21 @@ def build_report(s: Session, run: UpdateRun, prev: UpdateRun | None, before: Sna
     return data
 
 
+# Markdown punctuation that upstream text (rule titles, ids, log sources, error text) could use to add links, images,
+# emphasis, HTML or new blocks to a report that GitHub renders (the nightly job summary).
+_MD_SPECIAL = re.compile(r"([\\`*_\[\]<>!|~#])")
+
+
 def _esc(text: Any) -> str:
-    return clean_text(str(text if text is not None else "")).replace("|", "\\|").replace("\n", " ")
+    """Untrusted text as literal, one-line Markdown: punctuation backslash-escaped, line breaks as spaces."""
+    flat = " ".join(clean_text(str(text if text is not None else "")).splitlines())
+    return _MD_SPECIAL.sub(r"\\\1", flat)
+
+
+def _fence(lines: list[str]) -> str:
+    """A code fence longer than any backtick run in `lines`, so no line can close it early."""
+    longest = max((len(run) for line in lines for run in re.findall(r"`+", line)), default=0)
+    return "`" * max(3, longest + 1)
 
 
 def _num(v: Any) -> str:
@@ -518,11 +531,11 @@ def render_markdown(r: dict[str, Any]) -> str:
     head = {"ok": "OK", "source failures": "OK, some sources failed", "failed gate": "FAILED GATE", "error": "ERROR"}.get(status, status.upper())
     out = [f"# sigharvest update {r['run']}: {head}", "", f"Started {r['started']} UTC, finished {r['finished']} UTC.", ""]
     if r["reasons"]:
-        out += ["**Needs a look:**", "", *[f"- {x}" for x in r["reasons"]], ""]
+        out += ["**Needs a look:**", "", *[f"- {_esc(x)}" for x in r["reasons"]], ""]
     if r.get("notes"):
         out += ["**Notes:**", "", *[f"- {_esc(x)}" for x in r["notes"]], ""]
     out += ["## Gates", "", "| gate | result | detail |", "|---|---|---|"]
-    out += [f"| {g['name']} | {g['status']} | {_esc(g['detail'])} |" for g in r["gates"]]
+    out += [f"| {_esc(g['name'])} | {_esc(g['status'])} | {_esc(g['detail'])} |" for g in r["gates"]]
     prev = r["previous_counts"] or {}
     out += ["", "## Counts", "", f"Compared with run {r['previous_run'] or '-'} (the last run that passed its gates).", ""]
     out += ["| metric | previous | now | change |", "|---|---:|---:|---:|"]
@@ -567,23 +580,24 @@ def render_markdown(r: dict[str, Any]) -> str:
         for x in cap(r["new"]):
             title = _esc(x["title"]) + (" (junk)" if x["junk"] else "")
             srcs = _esc(", ".join(x["sources"][:3])) + (" ..." if len(x["sources"]) > 3 else "")
-            out.append(f"| {x['logic'][:10]} | {title} | {x['level'] or ''} | {x['logsource']} | {x['score']} | {x['family']} | {srcs} |")
+            out.append(f"| {_esc(x['logic'][:10])} | {title} | {_esc(x['level'] or '')} | {_esc(x['logsource'])} | {x['score']} | {x['family']} | {srcs} |")
         out += more(r["new"])
     out += ["", f"## Changed upstream ({len(r['changed'])})", ""]
     for x in cap(r["changed"]):
-        out += [f"**{_esc(x['title'])}** (rule {x['rule_id']}, {x['old'][:10]} -> {x['new'][:10]}, in {_esc(', '.join(x['sources'][:3]))})", ""]
+        versions = f"{_esc(x['old'][:10])} -> {_esc(x['new'][:10])}"
+        out += [f"**{_esc(x['title'])}** (rule {_esc(x['rule_id'])}, {versions}, in {_esc(', '.join(x['sources'][:3]))})", ""]
         if diff_unavailable(x["diff"]):
             out += [f"({_esc(x['diff'][0])})", ""]
         else:
-            out += ["```diff", *x["diff"], "```", ""] if x["diff"] else ["(metadata only: the detection is identical)", ""]
+            out += [_fence(x["diff"]) + "diff", *x["diff"], _fence(x["diff"]), ""] if x["diff"] else ["(metadata only: the detection is identical)", ""]
     out += more(r["changed"])
     out += ["", f"## Removed rules ({len(r['removed'])})", ""]
-    out += [f"- {x['logic'][:10]} {_esc(x['title'])}" for x in cap(r["removed"])] + more(r["removed"])
+    out += [f"- {_esc(x['logic'][:10])} {_esc(x['title'])}" for x in cap(r["removed"])] + more(r["removed"])
     out += ["", "## Sources", ""]
     if r["sources"]:
         out += ["| source | new | changed | removed | error |", "|---|---:|---:|---:|---|"]
         rows = sorted(r["sources"].items(), key=lambda kv: (not kv[1]["error"], -(kv[1]["new"] + kv[1]["changed"] + kv[1]["removed"]), kv[0]))
-        out += [f"| {n} | {v['new']} | {v['changed']} | {v['removed']} | {_esc(v['error'][:160])} |" for n, v in rows[: MD_LIMIT * 2]]
+        out += [f"| {_esc(n)} | {v['new']} | {v['changed']} | {v['removed']} | {_esc(v['error'][:160])} |" for n, v in rows[: MD_LIMIT * 2]]
     else:
         out.append("No source changed.")
     out += ["", "## Collections affected", ""]

@@ -189,15 +189,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~1242 valid rules, 1182 unique; github stars=6 pushed=2026-11-04
-- name: kennethhelmuth__threat-intelligence
-  url: https://github.com/KennethHelmuth/threat-intelligence.git
-  paths:
-  - Sigma/**
-  licence: MIT
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~1107 valid rules, 1107 unique; github stars=1 pushed=2026-11-14
 - name: systemtwosecurity__s2s-detectionrules-demo-public
   url: https://github.com/systemtwosecurity/s2s-detectionrules-demo-public.git
   paths:
@@ -282,16 +273,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~682 valid rules, 420 unique; github stars=0 pushed=2026-10-18
-- name: wrg-11__wrg-sigma-rules
-  url: https://github.com/WRG-11/wrg-sigma-rules.git
-  paths:
-  - plugins/wrg-sigma-rules/runtime/resources/examples/**
-  - resources/examples/**
-  licence: MIT
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~650 valid rules, 295 unique; github stars=2 pushed=2026-11-11
 - name: treant-lab__tamandua-server
   url: https://github.com/treant-lab/tamandua-server.git
   paths:
@@ -320,15 +301,6 @@ sources:
   priority: 50
   tier: extended
   notes: '~608 valid rules, 605 unique; github stars=0 pushed=2025-12-18; no licence: index metadata/links only, do not redistribute rule content'
-- name: mohamedyoussef-cloud__ai-powered-autonomous-threat-hunting-platform
-  url: https://github.com/mohamedyoussef-cloud/AI-Powered-Autonomous-Threat-Hunting-Platform.git
-  paths:
-  - artifacts/sigma/rules/**
-  licence: null
-  redistributable: false
-  priority: 50
-  tier: extended
-  notes: '~540 valid rules, 522 unique; github stars=4 pushed=2026-10-20; no licence: index metadata/links only, do not redistribute rule content'
 - name: adibirzu__oci-log-analytics-detections
   url: https://github.com/adibirzu/oci-log-analytics-detections.git
   paths:
@@ -508,15 +480,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~254 valid rules, 252 unique; github stars=8 pushed=2026-11-06
-- name: slotrust__code_warriors_aegix_soc
-  url: https://github.com/slotrust/code_warriors_Aegix_soc.git
-  paths:
-  - sigma_rules/**
-  licence: null
-  redistributable: false
-  priority: 50
-  tier: extended
-  notes: '~250 valid rules, 7 unique; github stars=0 pushed=2026-04-29; no licence: index metadata/links only, do not redistribute rule content'
 - name: wahidhendrawan__detection-rules
   url: https://github.com/wahidhendrawan/Detection-Rules.git
   paths:
@@ -645,15 +608,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~148 valid rules, 140 unique; github stars=4 pushed=2026-03-30
-- name: mukeshkumarc-0309__sigmaforge
-  url: https://github.com/MukeshKumarC-0309/SigmaForge.git
-  paths:
-  - rules/**
-  licence: MIT
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~146 valid rules, 141 unique; github stars=0 pushed=2026-09-14
 - name: medohosny94__nca-sigma-rules
   url: https://github.com/medohosny94/NCA-Sigma-Rules.git
   paths:
@@ -855,15 +809,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~96 valid rules, 96 unique; github stars=2 pushed=2026-05-19
-- name: khalidalidistinct__red-report-engine
-  url: https://github.com/khalidalidistinct/red-report-engine.git
-  paths:
-  - reports/**
-  licence: null
-  redistributable: false
-  priority: 50
-  tier: extended
-  notes: '~96 valid rules, 11 unique; github stars=0 pushed=2026-05-11; no licence: index metadata/links only, do not redistribute rule content'
 - name: zshanhyder01__detection-engineering
   url: https://github.com/zshanhyder01/Detection-Engineering.git
   paths:
@@ -1579,24 +1524,6 @@ sources:
   priority: 50
   tier: extended
   notes: '~41 valid rules, 41 unique; github stars=0 pushed=2026-01-19; no licence: index metadata/links only, do not redistribute rule content'
-- name: ping2a__sigmazero
-  url: https://github.com/ping2A/sigmazero.git
-  paths:
-  - examples/**
-  licence: Apache-2.0
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~41 valid rules, 41 unique; github stars=3 pushed=2026-04-27
-- name: cpt-ferna02__aven
-  url: https://github.com/cpt-ferna02/AVEN.git
-  paths:
-  - output/**
-  licence: null
-  redistributable: false
-  priority: 50
-  tier: extended
-  notes: '~40 valid rules, 22 unique; github stars=0 pushed=2026-06-09; no licence: index metadata/links only, do not redistribute rule content'
 - name: marez8505__sigmashield
   url: https://github.com/marez8505/SigmaShield.git
   paths:
@@ -1888,15 +1815,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~32 valid rules, 32 unique; github stars=1 pushed=2025-12-02
-- name: dragnet-dev__dragnet
-  url: https://github.com/dragnet-dev/dragnet.git
-  paths:
-  - internal/backends/**
-  licence: MIT
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~32 valid rules, 3 unique; github stars=1 pushed=2026-07-24
 - name: sansan-monkey__hunting-rules
   url: https://github.com/sansan-monkey/hunting-rules.git
   paths:
@@ -2123,15 +2041,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~27 valid rules, 27 unique; github stars=0 pushed=2026-05-25
-- name: raoof128__ptadd
-  url: https://github.com/Raoof128/PTADD.git
-  paths:
-  - detection-rules/sigma-rules/**
-  licence: MIT
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~27 valid rules, 27 unique; github stars=1 pushed=2025-11-15
 - name: hishamunniyankal__sigma2rml
   url: https://github.com/hishamunniyankal/sigma2rml.git
   paths:
@@ -2282,11 +2191,11 @@ sources:
   url: https://github.com/danielgottt/malware-detection-analytics.git
   paths:
   - sigma/**
-  licence: MIT
-  redistributable: true
+  licence: null
+  redistributable: false
   priority: 50
   tier: extended
-  notes: ~24 valid rules, 24 unique; github stars=1 pushed=2026-02-18
+  notes: '~24 valid rules, 24 unique; github stars=1 pushed=2026-02-18; no licence: LICENSE deleted upstream in 2022 (c361abb), before the Sigma rules were added (GitHub metadata still reports MIT); index metadata/links only, do not redistribute rule content'
 - name: kylereid1017__threat-detection-lab
   url: https://github.com/kylereid1017/threat-detection-lab.git
   paths:
@@ -2475,15 +2384,6 @@ sources:
   priority: 50
   tier: extended
   notes: '~22 valid rules, 22 unique; github stars=0 pushed=2026-10-31; no licence: index metadata/links only, do not redistribute rule content'
-- name: elieroc__elastalert3
-  url: https://github.com/Elieroc/elastalert3.git
-  paths:
-  - tests/sigma/**
-  licence: Apache-2.0
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~22 valid rules, 21 unique; github stars=0 pushed=2026-11-12
 - name: jacobrhess__clouddetect
   url: https://github.com/JacobRHess/clouddetect.git
   paths:
@@ -2610,15 +2510,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~21 valid rules, 17 unique; github stars=0 pushed=2026-10-20
-- name: grafana__pysigma-backend-loki
-  url: https://github.com/grafana/pySigma-backend-loki.git
-  paths:
-  - tests/**
-  licence: AGPL-3.0-only
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: '~21 valid rules, 7 unique; github stars=59 pushed=2026-11-13; AGPL-3.0: copyleft/share-alike, keep licence + attribution with redistributed rules'
 - name: liamcarper__ot-detection-engineering
   url: https://github.com/LiamCarPer/ot-detection-engineering.git
   paths:
@@ -2837,21 +2728,13 @@ sources:
 - name: uniqu3-us3r__detections
   url: https://github.com/uniqu3-us3r/Detections.git
   paths:
-  - CVE-2026-102255/**
-  - CVE-2026-104286/**
-  - CVE-2026-104935/**
-  - CVE-2026-107406/**
-  - CVE-2026-109618-109619 (PHP2Shell)/**
-  - CVE-2026-111497 (Node2Shell)/**
-  - CVE-2026-21589/**
-  - CVE-2026-76504/**
-  - CVE-2026-88771/**
-  - CVE-2026-88779/**
+  - Emerging threats/**
+  - Vulnerabilities/**
   licence: MIT
   redistributable: true
   priority: 50
   tier: extended
-  notes: ~20 valid rules, 20 unique; github stars=0 pushed=2026-11-10
+  notes: '~41 valid rules, 41 unique; github stars=0 pushed=2026-11-18; paths updated 2026-11-19 (rules moved from CVE-*/ to Emerging threats/ and Vulnerabilities/)'
 - name: wahidhendrawan__forensis
   url: https://github.com/wahidhendrawan/Forensis.git
   paths:
@@ -3044,24 +2927,6 @@ sources:
   priority: 50
   tier: extended
   notes: '~18 valid rules, 18 unique; github stars=0 pushed=2026-03-31; no licence: index metadata/links only, do not redistribute rule content'
-- name: petsku01__theory
-  url: https://github.com/Petsku01/Theory.git
-  paths:
-  - siem-rules/Sigma_rules/**
-  licence: null
-  redistributable: false
-  priority: 50
-  tier: extended
-  notes: '~18 valid rules, 18 unique; github stars=0 pushed=2026-11-09; no licence: index metadata/links only, do not redistribute rule content'
-- name: raoof128__sdesr
-  url: https://github.com/Raoof128/SDESR.git
-  paths:
-  - rules/**
-  licence: DRL-1.0
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: '~18 valid rules, 18 unique; github stars=0 pushed=2025-11-15; DRL: keep author/reference attribution'
 - name: samuelabhinav37__sentinel
   url: https://github.com/Samuelabhinav37/Sentinel.git
   paths:
@@ -3675,15 +3540,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~15 valid rules, 15 unique; github stars=0 pushed=2026-07-10
-- name: agent-defense__parallax
-  url: https://github.com/agent-defense/parallax.git
-  paths:
-  - rules/sigma/**
-  licence: Apache-2.0
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~14 valid rules, 14 unique; github stars=38 pushed=2026-09-11
 - name: alegregonza__soc-home-lab
   url: https://github.com/AlegreGonza/soc-home-lab.git
   paths:
@@ -3777,16 +3633,6 @@ sources:
   priority: 50
   tier: extended
   notes: '~14 valid rules, 14 unique; github stars=1 pushed=2026-11-10; AGPL-3.0: copyleft/share-alike, keep licence + attribution with redistributed rules'
-- name: gh0st-la6z-exe__null-sigma
-  url: https://github.com/Gh0st-La6z-exe/null-sigma.git
-  paths:
-  - examples/**
-  - tests/**
-  licence: Apache-2.0
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~14 valid rules, 14 unique; github stars=1 pushed=2026-11-13
 - name: izzyboop__sigma-and-yara-rules
   url: https://github.com/IzzyBoop/Sigma-and-Yara-Rules.git
   paths:
@@ -4088,15 +3934,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~13 valid rules, 13 unique; github stars=14 pushed=2026-09-06
-- name: kanga-heera__mechanic
-  url: https://github.com/Kanga-Heera/mechanic.git
-  paths:
-  - tests/fixtures/**
-  licence: MIT
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~13 valid rules, 9 unique; github stars=0 pushed=2026-09-08
 - name: karib0u__shai-hulud-2026-detection-engineering
   url: https://github.com/Karib0u/shai-hulud-2026-detection-engineering.git
   paths:
@@ -4407,15 +4244,6 @@ sources:
   priority: 50
   tier: extended
   notes: '~12 valid rules, 12 unique; github stars=22 pushed=2026-08-15; no licence: index metadata/links only, do not redistribute rule content'
-- name: franski6325__militiacelestial
-  url: https://github.com/Franski6325/MilitiaCelestial.git
-  paths:
-  - tests/**
-  licence: Apache-2.0
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~12 valid rules, 12 unique; github stars=1 pushed=2026-10-07
 - name: ge0mant1s__soacframe-community
   url: https://github.com/ge0mant1s/soacframe-community.git
   paths:
@@ -5023,15 +4851,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~10 valid rules, 10 unique; github stars=0 pushed=2026-09-02
-- name: crowdalert__sigmars
-  url: https://github.com/crowdalert/sigmars.git
-  paths:
-  - src/tests/**
-  licence: MIT
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~10 valid rules, 9 unique; github stars=8 pushed=2026-07-14
 - name: dearlyonald__detection-lab-as-code
   url: https://github.com/dearlyonald/detection-lab-as-code.git
   paths:
@@ -5123,15 +4942,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~10 valid rules, 10 unique; github stars=0 pushed=2026-10-12
-- name: hyperi-io__dfe-engine
-  url: https://github.com/hyperi-io/dfe-engine.git
-  paths:
-  - tests/resources/**
-  licence: Apache-2.0
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: ~10 valid rules, 5 unique; github stars=0 pushed=2026-11-14
 - name: ideanix__hunting-emmenhtal
   url: https://github.com/ideanix/hunting-emmenhtal.git
   paths:
@@ -5515,15 +5325,6 @@ sources:
   priority: 50
   tier: extended
   notes: ~10 valid rules, 10 unique; github stars=0 pushed=2026-10-12
-- name: rulezet__rulezet-rulesets
-  url: https://github.com/rulezet/rulezet-rulesets.git
-  paths:
-  - rules/**
-  licence: null
-  redistributable: false
-  priority: 60
-  tier: extended
-  notes: '~8046 valid rules, 7956 unique; github stars=1 pushed=2026-10-10; 77% logic already in SigmaHQ/hayabusa (partial copy); no licence: index metadata/links only, do not redistribute rule content'
 - name: byron2306__metatron
   url: https://github.com/Byron2306/Metatron.git
   paths:
@@ -5564,16 +5365,6 @@ sources:
   tier: extended
   notes: '~5376 valid rules, 5353 unique; github stars=2 pushed=2026-05-15; 69% logic already in SigmaHQ/hayabusa (partial copy); AGPL-3.0: copyleft/share-alike, keep licence + attribution with redistributed
     rules'
-- name: limerencece__malwaredetector
-  url: https://github.com/Limerencece/MalwareDetector.git
-  paths:
-  - backend/go-sigma-rule-engine-master/examples/simple-rule-mapping/windows/**
-  - rules/**
-  licence: null
-  redistributable: false
-  priority: 60
-  tier: extended
-  notes: '~4665 valid rules, 4621 unique; github stars=0 pushed=2026-01-24; 80% logic already in SigmaHQ/hayabusa (partial copy); no licence: index metadata/links only, do not redistribute rule content'
 - name: infosecjay__sigma-rules-enriched
   url: https://github.com/InfoSecJay/sigma-rules-enriched.git
   paths:
@@ -6569,15 +6360,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~20 valid rules, 20 unique; github stars=18 pushed=2024-08-25; stale (last push 2024-08-25); AGPL-3.0: copyleft/share-alike, keep licence + attribution with redistributed rules'
-- name: binalyze__tigma
-  url: https://github.com/binalyze/tigma.git
-  paths:
-  - test/sigma/**
-  licence: GPL-3.0-only
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: '~19 valid rules, 19 unique; github stars=28 pushed=2023-03-05; stale (last push 2023-03-05); GPL-3.0: copyleft/share-alike, keep licence + attribution with redistributed rules'
 - name: dtrizna__quasarnix
   url: https://github.com/dtrizna/QuasarNix.git
   paths:
@@ -6989,15 +6771,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~9 valid rules, 9 unique; github stars=0 pushed=2026-05-19; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: haghfizzuddin__detection-rules
-  url: https://github.com/haghfizzuddin/detection-rules.git
-  paths:
-  - rules/**
-  licence: null
-  redistributable: false
-  priority: 60
-  tier: extended
-  notes: '~9 valid rules, 9 unique; github stars=0 pushed=2026-04-21; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
 - name: haghfizzuddin__sigma-rule-pack
   url: https://github.com/haghfizzuddin/sigma-rule-pack.git
   paths:
@@ -7316,15 +7089,6 @@ sources:
   priority: 60
   tier: extended
   notes: ~8 valid rules, 8 unique; github stars=0 pushed=2026-07-02; few rules (<10)
-- name: cawalch__sigma-engine
-  url: https://github.com/cawalch/sigma-engine.git
-  paths:
-  - tests/rules/**
-  licence: Apache-2.0
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: ~8 valid rules, 8 unique; github stars=2 pushed=2025-09-13; few rules (<10)
 - name: cs-abuhelal__tracer
   url: https://github.com/CS-Abuhelal/tracer.git
   paths:
@@ -7352,15 +7116,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~8 valid rules, 8 unique; github stars=0 pushed=2026-11-14; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: cybereason-public__owlsm
-  url: https://github.com/Cybereason-Public/owLSM.git
-  paths:
-  - Rules/**
-  licence: GPL-2.0-only
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: '~8 valid rules, 8 unique; github stars=282 pushed=2026-11-12; few rules (<10); GPL-2.0: copyleft/share-alike, keep licence + attribution with redistributed rules'
 - name: dev-shams__ai-soc-lab
   url: https://github.com/dev-shams/AI-SOC-Lab.git
   paths:
@@ -7636,15 +7391,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~8 valid rules, 8 unique; github stars=0 pushed=2026-06-11; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: noxxa7705__sigma-builder
-  url: https://github.com/noxxa7705/sigma-builder.git
-  paths:
-  - templates/**
-  licence: null
-  redistributable: false
-  priority: 60
-  tier: extended
-  notes: '~8 valid rules, 8 unique; github stars=0 pushed=2026-03-23; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
 - name: omarbabba779xx__network-traffic-monitoring-lab
   url: https://github.com/omarbabba779xx/network-traffic-monitoring-lab.git
   paths:
@@ -7816,22 +7562,6 @@ sources:
   priority: 60
   tier: extended
   notes: ~8 valid rules, 8 unique; github stars=2 pushed=2024-09-02; stale (last push 2024-09-02); few rules (<10)
-- name: nocoolusername__intel-to-improvements
-  url: https://github.com/NoCoolUserName/intel-to-improvements.git
-  paths:
-  - catalogs/sigma/rules__windows__process_creation__proc_creation_win_certutil_download.yml
-  - catalogs/sigma/rules__windows__process_creation__proc_creation_win_certutil_download_direct_ip.yml
-  - catalogs/sigma/rules__windows__process_creation__proc_creation_win_certutil_download_file_sharing_domains.yml
-  - catalogs/sigma/rules__windows__process_creation__proc_creation_win_remote_access_tools_anydesk.yml
-  - catalogs/sigma/rules__windows__process_creation__proc_creation_win_remote_access_tools_anydesk_piped_password_via_cli.yml
-  - catalogs/sigma/rules__windows__process_creation__proc_creation_win_remote_access_tools_anydesk_revoked_cert.yml
-  - catalogs/sigma/rules__windows__process_creation__proc_creation_win_remote_access_tools_anydesk_silent_install.yml
-  - catalogs/sigma/rules__windows__process_creation__proc_creation_win_remote_access_tools_anydesk_susp_exec.yml
-  licence: DRL-1.1
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: '~8 valid rules; github stars=0 pushed=2026-11-14; raw/quality-flagged (not schema-validated by discovery); few rules (<10); DRL: keep author/reference attribution'
 - name: omatosz__veryon
   url: https://github.com/omatosz/veryon.git
   paths:
@@ -8285,15 +8015,6 @@ sources:
   priority: 60
   tier: extended
   notes: ~7 valid rules, 7 unique; github stars=1 pushed=2026-08-02; few rules (<10)
-- name: peleduri__practical-guide-to-securing-ai-agents
-  url: https://github.com/peleduri/Practical-Guide-to-Securing-AI-Agents.git
-  paths:
-  - templates/detections/**
-  licence: CC-BY-4.0
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: ~7 valid rules, 7 unique; github stars=0 pushed=2026-07-27; few rules (<10)
 - name: pratik0x__sigma-rules
   url: https://github.com/pratik0x/Sigma-Rules.git
   paths:
@@ -8504,21 +8225,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~7 valid rules, 7 unique; github stars=0 pushed=2026-06-04; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: adibirzu__oci-observability-tools
-  url: https://github.com/adibirzu/oci-observability-tools.git
-  paths:
-  - examples/sigma/dns.yml
-  - examples/sigma/linux-auth.yml
-  - examples/sigma/network.yml
-  - examples/sigma/oci-audit.yml
-  - examples/sigma/windows-logon.yml
-  - examples/sigma/windows-process.yml
-  - tests/fixtures/sigma/modifiers.yml
-  licence: Apache-2.0
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: ~7 valid rules; github stars=0 pushed=2026-10-12; raw/quality-flagged (not schema-validated by discovery); few rules (<10)
 - name: ravishkarathnayaka__automated-active-directory-attack-detection-range-purple-teaming-
   url: https://github.com/ravishkarathnayaka/Automated-Active-Directory-Attack-Detection-Range-Purple-Teaming-.git
   paths:
@@ -8734,15 +8440,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~6 valid rules, 6 unique; github stars=93 pushed=2024-08-30; stale (last push 2024-08-30); few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: certeu__droid
-  url: https://github.com/certeu/droid.git
-  paths:
-  - tests/files/**
-  licence: EUPL-1.2
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: '~6 valid rules, 6 unique; github stars=47 pushed=2026-11-12; few rules (<10); EUPL-1.2: copyleft/share-alike, keep licence + attribution with redistributed rules'
 - name: darksp33d__hyperhives-macos-infostealer-analysis
   url: https://github.com/Darksp33d/hyperhives-macos-infostealer-analysis.git
   paths:
@@ -8755,12 +8452,12 @@ sources:
 - name: daveherrald__echolake-datasets
   url: https://github.com/daveherrald/echolake-datasets.git
   paths:
-  - datasets/php2shell/detections/**
+  - datasets/*/rules/sigma/**
   licence: CC0-1.0
   redistributable: true
   priority: 60
   tier: extended
-  notes: ~6 valid rules, 6 unique; github stars=2 pushed=2026-11-10; few rules (<10)
+  notes: '~9 valid rules, 9 unique; github stars=2 pushed=2026-11-10; path updated 2026-11-19 (detections moved to datasets/*/rules/sigma/)'
 - name: emiliano-its__soc-lab-and-detection
   url: https://github.com/Emiliano-Its/SOC-Lab-And-Detection.git
   paths:
@@ -9141,15 +8838,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~6 valid rules, 6 unique; github stars=0 pushed=2026-10-21; few rules (<10); LicenseRef-proprietary: restrictive licence, do not redistribute'
-- name: raf-tsc__sigma
-  url: https://github.com/raf-TSC/sigma.git
-  paths:
-  - rules/linux/**
-  licence: null
-  redistributable: false
-  priority: 60
-  tier: extended
-  notes: '~6 valid rules, 6 unique; github stars=0 pushed=2026-10-25; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
 - name: rakshit-737__anvil-detection-engineering
   url: https://github.com/rakshit-737/anvil-detection-engineering.git
   paths:
@@ -9354,15 +9042,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~6 valid rules, 6 unique; github stars=0 pushed=2026-08-27; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: wislest__detection-rule-backtester
-  url: https://github.com/wislest/detection-rule-backtester.git
-  paths:
-  - examples/rules/**
-  licence: MIT
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: ~6 valid rules, 6 unique; github stars=0 pushed=2026-10-26; few rules (<10)
 - name: yacndehfuli__detection-under-load
   url: https://github.com/YaCnDehfuli/detection-under-load.git
   paths:
@@ -9429,15 +9108,6 @@ sources:
   priority: 60
   tier: extended
   notes: ~6 valid rules, 6 unique; github stars=7 pushed=2026-11-06; few rules (<10)
-- name: brandefense__ioc
-  url: https://github.com/BRANDEFENSE/IoC.git
-  paths:
-  - IoC-YARA-SIGMA-Rules- APT38.txt
-  licence: CC-BY-4.0
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: ~6 valid rules; github stars=25 pushed=2026-10-23; raw/quality-flagged (not schema-validated by discovery); few rules (<10)
 - name: 0x0allenace__windows-malware-behavioral-analysis
   url: https://github.com/0x0allenace/windows-malware-behavioral-analysis.git
   paths:
@@ -9573,15 +9243,6 @@ sources:
   priority: 60
   tier: extended
   notes: ~5 valid rules, 5 unique; github stars=0 pushed=2026-02-26; few rules (<10)
-- name: alinurettin__xsoar-sigma-transpiler
-  url: https://github.com/alinurettin/XSOAR-Sigma-Transpiler.git
-  paths:
-  - tests/fixtures/**
-  licence: MIT
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: ~5 valid rules, 5 unique; github stars=0 pushed=2026-09-20; few rules (<10)
 - name: allsmog__mlw-lab
   url: https://github.com/allsmog/mlw-lab.git
   paths:
@@ -9709,15 +9370,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~5 valid rules, 5 unique; github stars=1 pushed=2026-04-26; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: cosai-oasis__ws2-defenders
-  url: https://github.com/cosai-oasis/ws2-defenders.git
-  paths:
-  - telemetry/aitf/examples/detection-rules/sigma_rules/**
-  licence: Apache-2.0
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: ~5 valid rules, 5 unique; github stars=69 pushed=2026-11-13; few rules (<10)
 - name: crlosrodas__detection-engineering-sigma-rules
   url: https://github.com/crlosrodas/detection-engineering-sigma-rules.git
   paths:
@@ -9764,16 +9416,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~5 valid rules, 5 unique; github stars=0 pushed=2026-10-29; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: dfirtnt__sigmasimtest
-  url: https://github.com/dfirtnt/SIGMASimTest.git
-  paths:
-  - examples/**
-  - tests/fixtures/**
-  licence: null
-  redistributable: false
-  priority: 60
-  tier: extended
-  notes: '~5 valid rules, 4 unique; github stars=0 pushed=2026-08-31; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
 - name: dheerajmaram__attack-heatmap
   url: https://github.com/DheerajMaram/attack-heatmap.git
   paths:
@@ -9871,15 +9513,6 @@ sources:
   priority: 60
   tier: extended
   notes: '~5 valid rules, 5 unique; github stars=0 pushed=2026-06-11; few rules (<10); no licence: index metadata/links only, do not redistribute rule content'
-- name: girdav01__aitf
-  url: https://github.com/girdav01/AITF.git
-  paths:
-  - examples/detection-rules/sigma_rules/**
-  licence: MIT
-  redistributable: true
-  priority: 60
-  tier: extended
-  notes: ~5 valid rules, 5 unique; github stars=0 pushed=2026-07-15; few rules (<10)
 - name: gurpreet6194-hub__siem-detection-rules
   url: https://github.com/gurpreet6194-hub/siem-detection-rules.git
   paths:
@@ -9947,12 +9580,12 @@ sources:
 - name: iamjammie__hunt-sage
   url: https://github.com/iamjammie/hunt-sage.git
   paths:
-  - research/Sigma/**
+  - research/sigma/**
   licence: LicenseRef-proprietary
   redistributable: false
   priority: 60
   tier: extended
-  notes: '~5 valid rules, 5 unique; github stars=0 pushed=2026-11-11; few rules (<10); LicenseRef-proprietary: restrictive licence, do not redistribute'
+  notes: '~43 valid rules, 43 unique; github stars=0 pushed=2026-11-11; path updated 2026-11-19 (research/Sigma renamed to research/sigma); LicenseRef-proprietary: restrictive licence, do not redistribute'
 - name: ibrahimx1bh__oauth-silent-auth-detections
   url: https://github.com/Ibrahimx1bh/oauth-silent-auth-detections.git
   paths:
@@ -11005,7 +10638,7 @@ sources:
 - name: varunrajparimi__sigma_rules
   url: https://github.com/Varunrajparimi/SIGMA_Rules.git
   paths:
-  - '**/**'
+  - '**'
   licence: null
   redistributable: false
   priority: 50
@@ -11044,7 +10677,7 @@ sources:
 - name: xrobotblackhat-web__sigma-rules
   url: https://github.com/xrobotblackhat-web/Sigma-rules.git
   paths:
-  - '**/**'
+  - '**'
   licence: null
   redistributable: false
   priority: 60
@@ -11213,3 +10846,33 @@ sources:
   priority: 60
   tier: extended
   notes: ~5 valid rules; 5 logic found in no other listed source (re-added 2026-11-15 after review of dropped sources); github stars=100 pushed=2023-10-20; archived, stale > 2 years, few rules (<10)
+- name: yaklang__openxdr
+  url: https://github.com/yaklang/OpenXDR.git
+  paths:
+  - rules/**
+  exclude:
+  - rules/sigmahq/**
+  - rules/falco/**
+  licence: Apache-2.0
+  redistributable: true
+  priority: 60
+  tier: extended
+  notes: '~83 valid rules, 82 not in the corpus (added 2026-11-19 from discover); github stars=139 pushed=2026-11-19; rules/sigmahq/ (SigmaHQ copies) and rules/falco/ (Falco conversions, own LICENSE) excluded'
+- name: dark-roast-cyber__telltale
+  url: https://github.com/Dark-Roast-Cyber/telltale.git
+  paths:
+  - config/rules/**
+  licence: Apache-2.0
+  redistributable: true
+  priority: 60
+  tier: extended
+  notes: '~36 valid rules, all new (added 2026-11-19 from discover); github stars=7 pushed=2026-11-19; AI coding-agent tool-call monitoring (logsource product ai_agent); crates/ test copies and tests/fixtures/ left out'
+- name: gabaloho__el_doctor
+  url: https://github.com/gabaloho/El_Doctor.git
+  paths:
+  - eldoctor/data/rules/**
+  licence: MIT
+  redistributable: true
+  priority: 60
+  tier: extended
+  notes: '~18 valid rules, 17 not in the corpus (added 2026-11-19 from discover); github stars=0 pushed=2026-11-09; Linux host rules'

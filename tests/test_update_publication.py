@@ -344,3 +344,53 @@ def test_interrupted_first_update_keeps_its_work_and_resumes(workspace, monkeypa
     assert "1 sources unchanged" in result.output
     with open_db(ws)() as s:
         assert s.scalar(select(func.count()).select_from(LogicGroup)) == N_RULES
+
+
+def test_sigterm_right_after_the_run_row_commit_closes_the_row(workspace):
+    """The row was committed before CONTEXT knew its id: a SIGTERM there left it "running" after a clean exit."""
+    from sqlalchemy import event
+    from sqlalchemy.orm import Session
+
+    from sigharvest.models import UpdateRun
+
+    _, ws = workspace
+    seen = {"new": False, "fired": False}
+
+    def flushed(session, context):
+        seen["new"] |= any(isinstance(o, UpdateRun) for o in session.new)
+
+    def committed(session):
+        if seen["new"] and not seen["fired"]:
+            seen["fired"] = True
+            signal.raise_signal(signal.SIGTERM)
+
+    event.listen(Session, "after_flush", flushed)
+    event.listen(Session, "after_commit", committed)
+    try:
+        with pytest.raises(Cancelled):
+            update(ws)
+    finally:
+        event.remove(Session, "after_flush", flushed)
+        event.remove(Session, "after_commit", committed)
+    assert seen["fired"]
+    run = latest(ws)
+    assert run.status == "cancelled" and run.finished_at is not None
+
+
+def test_sigterm_while_recording_a_failed_update_closes_the_row(workspace, monkeypatch):
+    """A Cancelled raised inside `except Exception` skipped record_interruption and left the row "running"."""
+    from sigharvest import update_publication
+
+    _, ws = workspace
+    monkeypatch.setattr(runs, "evaluate", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("outcome block failed")))
+    real = update_publication.record_failure
+
+    def record_failure(*args, **kwargs):
+        signal.raise_signal(signal.SIGTERM)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(update_publication, "record_failure", record_failure)
+    with pytest.raises(Cancelled):
+        update(ws)
+    run = latest(ws)
+    assert run.status == "cancelled" and run.finished_at is not None
