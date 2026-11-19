@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+import re
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, NoReturn, ParamSpec, TypeVar
 
@@ -17,16 +18,41 @@ from sigharvest.lock import LockHeld
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from rich.console import ConsoleOptions, RenderableType
+    from rich.segment import Segment
+    from rich.text import Text
     from sqlalchemy.orm import Session
 
     from sigharvest.index import GroupFilters
     from sigharvest.query import Filters
 
+# C0/C1 controls except tab and newline. Rich drops only BEL, BS, VT, FF and CR, so an ESC from a rule tag, path,
+# detection key, error message or converted query would reach the terminal (CSI cursor moves, OSC title/link/clipboard).
+_CONTROLS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+class SafeConsole(Console):
+    """A Console that prints control characters as U+FFFD. Strings become Text in render_str (print, table cells,
+    measurement) and every renderable, nested ones included, goes through render, so untrusted text cannot carry
+    terminal escape sequences. Rich adds its own styling codes after this point; they are unaffected."""
+
+    def render_str(self, text: str, **kwargs: Any) -> Text:
+        return super().render_str(_CONTROLS.sub("\ufffd", text), **kwargs)
+
+    def render(self, renderable: RenderableType, options: ConsoleOptions | None = None) -> Iterable[Segment]:
+        from rich.text import Text
+
+        if isinstance(renderable, Text) and _CONTROLS.search(renderable.plain):
+            renderable = renderable.copy()
+            renderable.plain = _CONTROLS.sub("\ufffd", renderable.plain)  # same length: the spans keep their place
+        return super().render(renderable, options)
+
+
 # soft_wrap: messages are not re-wrapped by Rich (the terminal wraps long lines), so a path, URL or command in a
 # message is never split mid-word with a newline that breaks copy and paste. Tables still fit the terminal width.
-console = Console(soft_wrap=True)
+console = SafeConsole(soft_wrap=True)
 # Errors go to stderr and start with "error: " (docs/conventions.md).
-err_console = Console(stderr=True, soft_wrap=True)
+err_console = SafeConsole(stderr=True, soft_wrap=True)
 
 
 def error(markup: str) -> None:
