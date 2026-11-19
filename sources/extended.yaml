@@ -2191,11 +2191,11 @@ sources:
   url: https://github.com/danielgottt/malware-detection-analytics.git
   paths:
   - sigma/**
-  licence: MIT
-  redistributable: true
+  licence: null
+  redistributable: false
   priority: 50
   tier: extended
-  notes: ~24 valid rules, 24 unique; github stars=1 pushed=2026-02-18
+  notes: '~24 valid rules, 24 unique; github stars=1 pushed=2026-02-18; no licence: LICENSE deleted upstream in 2022 (c361abb), before the Sigma rules were added (GitHub metadata still reports MIT); index metadata/links only, do not redistribute rule content'
 - name: kylereid1017__threat-detection-lab
   url: https://github.com/kylereid1017/threat-detection-lab.git
   paths:
