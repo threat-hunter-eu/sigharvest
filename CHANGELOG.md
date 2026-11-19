@@ -38,6 +38,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 - Terminal escape sequences (ESC/C0/C1 controls) in upstream rule tags, descriptions, file paths, detection keys,
   converted queries and error messages reached the terminal; the CLI now prints every control character as U+FFFD,
   and `site build` escapes Rich markup in release errors.
+- The `template_title` check took quadratic time on a title full of unclosed `$(` or `{{`, so one hostile rule could
+  stall `index`, `update` or `lint` for hours; it is now linear, with the same matches.
 
 ## [0.1.0] - 2026-11-17
 
