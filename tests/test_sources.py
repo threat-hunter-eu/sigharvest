@@ -14,6 +14,9 @@ def test_file_links_only_for_github_and_gitlab() -> None:
     assert file_link("https://github.com/a/b.git", "abc", "rules/x.yml") == "https://github.com/a/b/blob/abc/rules/x.yml"
     assert file_link("https://gitlab.com/a/b", None, "x.yml") == "https://gitlab.com/a/b/-/blob/HEAD/x.yml"
     assert file_link("file:///tmp/repo", "abc", "x.yml") is None
+    # The host decides the link style, not a "gitlab.com" substring elsewhere in the URL.
+    assert file_link("https://github.com/gitlab.com/b", "abc", "x.yml") == "https://github.com/gitlab.com/b/blob/abc/x.yml"
+    assert file_link("https://gitlab.com/a/b.git", "abc", "x.yml") == "https://gitlab.com/a/b/-/blob/abc/x.yml"
 
 
 def test_source_config_defaults_and_unknown_keys(tmp_path) -> None:  # type: ignore[no-untyped-def]
