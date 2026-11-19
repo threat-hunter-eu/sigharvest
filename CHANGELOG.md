@@ -50,6 +50,9 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   "no rule matches these filters"; it now says that nothing is validated and to run `sigharvest test --stage validate`.
 - Docs: the `--with-dependencies` example exported the whole corpus and always failed (limit of 100 selected
   rules); measured `init --from-release` timings for the full nightly pack.
+- A rule page or `/api/rule` for a third-party rule with thousands of selections and a long `1 of x* or ...` condition
+  could use gigabytes of memory and minutes of CPU in the plain-language summary; the condition parser now stops at
+  256 tokens or 256 selection references and shows the rule's own description.
 
 ## [0.1.0] - 2026-11-17
 
