@@ -229,19 +229,18 @@ def test_rule_page_without_backends_explains_the_extra(client: TestClient, monke
 
     monkeypatch.setattr(rules, "BACKENDS", [])
     page = client.get(f"/rule/{logic(client)[:16]}", headers=HTML).text
-    assert 'uv tool install --reinstall "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"' in page.replace("&#34;", '"')
+    assert 'uv tool install --reinstall "sigharvest[convert]"' in page.replace("&#34;", '"')
     assert 'id="t-splunk"' not in page
 
 
-def test_install_hints_never_name_an_unpublished_pypi_package(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    """sigharvest is not on PyPI: every hint installs from the repository, through conversion.install_command."""
+def test_install_hints_use_the_published_pypi_package(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """sigharvest is on PyPI: every hint installs the published package with its extra, through conversion.install_command."""
     from sigharvest import conversion
 
-    assert (
-        conversion.install_command("convert-legacy")
-        == 'uv tool install --reinstall "sigharvest[convert-legacy] @ git+https://github.com/threat-hunter-eu/sigharvest"'
-    )
-    assert "git+https://" in (conversion.backend_error("lucene") or "git+https://") and "git+https://" in conversion.INSTALL_HINT
+    assert conversion.install_command("convert-legacy") == 'uv tool install --reinstall "sigharvest[convert-legacy]"'
+    assert "git+https://" not in (conversion.backend_error("lucene") or "") and "git+https://" not in conversion.INSTALL_HINT
+    monkeypatch.setattr(conversion, "INSTALL_SOURCE", "git+https://github.com/threat-hunter-eu/sigharvest")
+    assert conversion.install_command() == 'uv tool install --reinstall "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"'
     templates = Path(conversion.__file__).parent / "web" / "templates"
     for t in templates.rglob("*.html"):
         assert "pipx install" not in t.read_text(encoding="utf-8"), t

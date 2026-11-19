@@ -106,7 +106,7 @@ def doctor(
 def _runs(ctx: typer.Context) -> None:
     """Without a subcommand: the same as `sigharvest runs list`."""
     if ctx.invoked_subcommand is None:
-        runs_list(limit=20)
+        runs_list(limit=20, json_output=False)  # the defaults are typer.Option objects, which are truthy
 
 
 @runs_app.command("list")

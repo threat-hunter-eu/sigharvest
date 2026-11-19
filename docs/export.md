@@ -79,12 +79,17 @@ its effective, self-contained form). Files are laid out as `<product>/<category>
 `--unit all` writes every copy as `<rule id>_<content8>.yml`. `manifest.jsonl` lists, for every rule, its
 sources, licence and canonical copy.
 
-Correlation rules need the rules they reference. Add them with (the destination must not exist):
+Correlation rules need the rules they reference. Select the correlations (at most 100 per export; here Yamato
+Security's "PW Spray") and add the rules they reference with `--with-dependencies` (the destination must not exist):
 
 <!-- doctest -->
 ```bash
-sigharvest export --unit logic --with-dependencies --out portable/
+sigharvest export 'title:"pw spray" OR title:"brute force correlation"' --unit logic --with-dependencies --out portable/
 ```
+
+The export stops, and writes nothing, at the first selected rule it cannot package exactly: a correlation with
+attributes it does not support, a reference that is missing or matches several rules, or a chain of correlations.
+The error names the reason; narrow the search (or export that rule without `--with-dependencies`).
 
 Load the result into other tools:
 
@@ -142,10 +147,10 @@ The backends come in two optional dependency sets that exclude each other (insta
 pysigma-backend-opensearch 2.0.3 and pysigma-backend-kusto 1.0.1 all require pySigma < 2). Each moves into
 `[convert]` once it has one.
 
-<!-- doctest: skip network (installs from GitHub) -->
+<!-- doctest: skip network (installs from PyPI) -->
 ```bash
-uv tool install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"         # Splunk, Loki, SQLite
-uv tool install "sigharvest[convert-legacy] @ git+https://github.com/threat-hunter-eu/sigharvest"  # all seven targets
+uv tool install "sigharvest[convert]"         # Splunk, Loki, SQLite
+uv tool install "sigharvest[convert-legacy]"  # all seven targets
 ```
 
 A target whose backend is not installed is not offered in the web UI, and the CLI says which extra provides it.

@@ -54,7 +54,7 @@ Out of scope: the correctness of third-party rules, and the security of the SIEM
 Each release published by `.github/workflows/nightly.yml` has `SHA256SUMS`. When the repository is public and the
 maintainers enabled signing (`SIGHARVEST_SIGNING_ENABLED`, see docs/automation.md), it also has a keyless
 [Sigstore](https://www.sigstore.dev/) signature of it, `SHA256SUMS.sigstore.json`, made by that workflow on the
-`main` branch.
+`main` branch. Releases are signed since `rules-2026-11-19.2`; older ones have only `SHA256SUMS`.
 
 The files (and `SHA256SUMS.sigstore.json`) are assets of the data repository
 [sigharvest-rules](https://github.com/threat-hunter-eu/sigharvest-rules/releases); they are built and signed by this

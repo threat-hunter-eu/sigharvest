@@ -42,5 +42,6 @@ def file_link(url: str, commit: str | None, path: str) -> str | None:
     if not url.startswith(("https://github.com/", "https://gitlab.com/")):
         return None
     base = url.removesuffix(".git")
-    sep = "/-/blob/" if "gitlab.com" in base else "/blob/"
+    # Decide by the host, not by a substring: a GitHub repository path can contain "gitlab.com".
+    sep = "/-/blob/" if url.startswith("https://gitlab.com/") else "/blob/"
     return f"{base}{sep}{quote(commit or 'HEAD', safe='', errors='replace')}/{quote(path, safe='/', errors='replace')}"

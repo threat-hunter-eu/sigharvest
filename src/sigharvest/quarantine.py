@@ -34,6 +34,7 @@ def parser_version() -> str:
     return (
         f"ingest-v2/pyyaml-{yaml.__version__}/depth-{documents.MAX_YAML_DEPTH}/nodes-{documents.MAX_YAML_NODES}"
         f"/file-{documents.MAX_FILE_BYTES}/effective-{documents.MAX_EFFECTIVE_FILE_BYTES}"
+        f"/scalars-{documents.MAX_EXPANDED_SCALAR_BYTES}"
     )
 
 
