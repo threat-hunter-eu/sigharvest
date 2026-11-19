@@ -48,6 +48,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   clock started with the download; it now starts with the hashing.
 - An export with `--validation` in a workspace that has no validation results yet (`init --from-release`) only said
   "no rule matches these filters"; it now says that nothing is validated and to run `sigharvest test --stage validate`.
+- The weekly discovery workflow updated the first open PR from a branch named `automation/discover`, which could be
+  a fork PR; it now picks only a PR from the repository itself and otherwise opens its own.
 - Docs: the `--with-dependencies` example exported the whole corpus and always failed (limit of 100 selected
   rules); measured `init --from-release` timings for the full nightly pack.
 - A rule page or `/api/rule` for a third-party rule with thousands of selections and a long `1 of x* or ...` condition
