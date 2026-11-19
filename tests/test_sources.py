@@ -55,3 +55,13 @@ def test_redistributable_strings_are_normalised_fail_closed(value, expected) -> 
     from sigharvest.config import SourceConfig
 
     assert SourceConfig(name="x", url="https://example.org/x.git", redistributable=value).redistributable == expected
+
+
+def test_file_link_percent_encodes_untrusted_paths_and_commits() -> None:
+    # A file name from a source repository must not end the link or add Markdown where the link is written.
+    hostile = "rules/x>\n\n[Updated rule pack](https://attacker.example)\n<.yml"
+    link = file_link("https://github.com/a/b.git", "abc", hostile)
+    assert link is not None and link.startswith("https://github.com/a/b/blob/abc/rules/")
+    assert not any(c in link for c in "\n <>[]()")
+    assert file_link("https://github.com/a/b", "a/b c", "my rule.yml") == "https://github.com/a/b/blob/a%2Fb%20c/my%20rule.yml"
+    assert file_link("https://github.com/a/b", None, "bad\udcffname.yml") == "https://github.com/a/b/blob/HEAD/bad%3Fname.yml"
