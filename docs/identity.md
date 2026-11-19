@@ -131,7 +131,8 @@ SHA256(b"sigharvest-effective-v1\n" + context_digest.encode("ascii") + b"\n" + o
 - Duplicate explicit keys are errors, reported with both document-local line and column positions. YAML `<<`
   inheritance allows explicit overrides and keeps SafeLoader's merge-list precedence.
 - The usual byte, depth and expanded-node limits apply; the effective YAML is capped at 2 MiB per document and
-  16 MiB per input file.
+  16 MiB per input file. Scalar text after alias expansion is capped at 2 MiB per document, so one large
+  anchored value cannot be repeated through many aliases.
 
 Where the bytes live:
 
