@@ -49,3 +49,23 @@
 - peleduri__practical-guide-to-securing-ai-agents
 - slotrust__code_warriors_aegix_soc
 - wislest__detection-rule-backtester
+# Proposed by discover on 2026-11-19 and refused (full local sync, logic compared with release rules-2026-11-19.2).
+# Copies of beenuar__aisoc (same 6,257 rules).
+- prasanth595__aisoc
+- sarathsivankutty-clops__clops-soc-new
+- yashvinthan__aisoc
+# Copies of opensearch-project__security-analytics (2,242 of 2,249 logic already published).
+- sandstein__docker-dev-environment
+- sap-cloud-infrastructure__opensearch-security-analytics
+# Copies of SigmaHQ (>= 97% of their logic already published), most of them stale.
+- kerk1__sigmahq-4-convert
+- ion-storm__k8s-go-sigma-streamer
+- markmckinnon__autopsy-nbm-plugins
+- cybersecworkspace__wazuh-rules
+- mranv__rules
+- fa1c0n35__elemental-attack
+- hasamba__dfir-companion
+- dollce__ai-detection-engineering
+# Test fixtures and evaluation outputs only.
+- hecate-cti__hecate-core
+- timescale__rsigma-action

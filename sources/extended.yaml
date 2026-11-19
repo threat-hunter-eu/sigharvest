@@ -10846,3 +10846,33 @@ sources:
   priority: 60
   tier: extended
   notes: ~5 valid rules; 5 logic found in no other listed source (re-added 2026-11-15 after review of dropped sources); github stars=100 pushed=2023-10-20; archived, stale > 2 years, few rules (<10)
+- name: yaklang__openxdr
+  url: https://github.com/yaklang/OpenXDR.git
+  paths:
+  - rules/**
+  exclude:
+  - rules/sigmahq/**
+  - rules/falco/**
+  licence: Apache-2.0
+  redistributable: true
+  priority: 60
+  tier: extended
+  notes: '~83 valid rules, 82 not in the corpus (added 2026-11-19 from discover); github stars=139 pushed=2026-11-19; rules/sigmahq/ (SigmaHQ copies) and rules/falco/ (Falco conversions, own LICENSE) excluded'
+- name: dark-roast-cyber__telltale
+  url: https://github.com/Dark-Roast-Cyber/telltale.git
+  paths:
+  - config/rules/**
+  licence: Apache-2.0
+  redistributable: true
+  priority: 60
+  tier: extended
+  notes: '~36 valid rules, all new (added 2026-11-19 from discover); github stars=7 pushed=2026-11-19; AI coding-agent tool-call monitoring (logsource product ai_agent); crates/ test copies and tests/fixtures/ left out'
+- name: gabaloho__el_doctor
+  url: https://github.com/gabaloho/El_Doctor.git
+  paths:
+  - eldoctor/data/rules/**
+  licence: MIT
+  redistributable: true
+  priority: 60
+  tier: extended
+  notes: '~18 valid rules, 17 not in the corpus (added 2026-11-19 from discover); github stars=0 pushed=2026-11-09; Linux host rules'
