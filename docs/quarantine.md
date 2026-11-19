@@ -61,4 +61,4 @@ and a resolved entry and its stored inputs stay inspectable.
 
 Quarantine entries created by older versions have no stored file or attempts: their reason is `legacy` and their
 retention `legacy_unavailable`; they can be inspected but not retried. A parser fingerprint records the installed
-YAML library version and the depth and node limits; it never installs parser code.
+YAML library version and the depth, node and expanded scalar size limits; it never installs parser code.

@@ -23,7 +23,7 @@
 {% macro yaml_block(r, open=true) -%}
 {% if r.yaml %}
 <details{% if open %} open{% endif %}><summary>Sigma rule (YAML)</summary>
-<pre class="yaml" id="yaml-{{ r.lid }}"><code>{{ r.yaml }}</code></pre>
+<pre class="yaml" id="yaml-{{ r.lid }}" tabindex="0" aria-label="Sigma rule YAML"><code>{{ r.yaml }}</code></pre>
 <p><button class="btn" type="button" data-copy="yaml-{{ r.lid }}">copy YAML</button></p>
 </details>
 {% else %}

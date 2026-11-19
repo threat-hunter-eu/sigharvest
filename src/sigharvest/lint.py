@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from sigharvest import normalize as norm
-from sigharvest.documents import load_documents
+from sigharvest.documents import Document, load_documents
 from sigharvest.identity import content_hash, logic_hash, normalise_rule_id, placeholder_uuid, resolve_rule_id
 from sigharvest.quality import JUNK, classify
 from sigharvest.release_reader import SignaturePolicy, open_release
@@ -74,17 +74,10 @@ class Corpus:
         return c
 
 
-def _line_of(text: str, index: int) -> int:
-    """1-based line where document `index` of a multi-document file starts."""
-    if index == 0:
-        return 1
-    seen = 0
-    for n, line in enumerate(text.splitlines(), start=1):
-        if line.strip() == "---":
-            seen += 1
-            if seen == index:
-                return n + 1
-    return 1
+def _line_of(raw: bytes, doc: Document) -> int:
+    """1-based line where a document's content starts: its span in the file, below its `---` separator line."""
+    line = raw.count(b"\n", 0, doc.span_start) + 1
+    return line + 1 if doc.raw.lstrip(b"\xef\xbb\xbf").startswith(b"---") else line
 
 
 def lint_file(path: Path, corpus: Corpus, root: Path | None = None, matrix: Any = None) -> list[Finding]:
@@ -93,10 +86,9 @@ def lint_file(path: Path, corpus: Corpus, root: Path | None = None, matrix: Any 
 
     rel = path.relative_to(root).as_posix() if root else str(path)
     raw = path.read_bytes()
-    text = raw.decode("utf-8", "replace")
     out: list[Finding] = []
     for doc in load_documents(raw):
-        line = _line_of(text, doc.index)
+        line = _line_of(raw, doc)
         if doc.error:
             out.append(Finding(rel, line, "error", "invalid-yaml", doc.error[:300]))
             continue

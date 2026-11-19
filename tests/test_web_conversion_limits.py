@@ -113,3 +113,27 @@ def test_collection_export_is_same_origin_and_queued(client: TestClient, monkeyp
     finally:
         monkeypatch.undo()
         client.post("/collections/guarded/delete", follow_redirects=False)
+
+
+def test_the_post_download_builds_off_the_event_loop(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
+    """The build waits for the single export slot (up to 120 s) and then converts and zips: on the loop it froze every request."""
+    import asyncio
+
+    from fastapi import Response
+
+    from sigharvest.web.routes import export
+
+    where: list[str] = []
+
+    def build(*args: object, **kwargs: object) -> Response:
+        try:
+            asyncio.get_running_loop()
+            where.append("event loop")
+        except RuntimeError:
+            where.append("worker thread")
+        return Response("ok")
+
+    monkeypatch.setattr(export, "download_response", build)
+    assert client.post("/export/download", data={"format": "csv"}).status_code == 200
+    assert client.get("/export/download?format=csv").status_code == 200
+    assert where == ["worker thread", "worker thread"]

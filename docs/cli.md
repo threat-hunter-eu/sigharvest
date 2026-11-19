@@ -73,6 +73,11 @@ detection logic, or `--all-copies` to see every file that contains it. The summa
 unsupported rules and junk (test fixtures, synthetic documents, wrapped SIEM queries) unless you ask for them
 (`--include-deprecated`, `--include-junk`; the web UI's "show them" link).
 
+`--all-copies` lists files, not unique rules, so it takes only the per-file filters (`--product`, `--category`, `--service`,
+`--tag`, `--source`, `--status`, `--level`, `--include-deprecated`) and a text query. Options that need the index of unique
+rules (`--technique`, `--tactic`, `--validation`, `--backend`, `--min-sources`, `--flag`, `--include-junk`, `--sort`,
+`--offset`, `--profile`, `--licence`, `--licence-class`) are refused with `--all-copies`.
+
 <!-- doctest -->
 ```bash
 sigharvest search mimikatz --per-logic
