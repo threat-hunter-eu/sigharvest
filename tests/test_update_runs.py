@@ -353,6 +353,17 @@ def test_control_characters_never_reach_the_terminal(tmp_path: Path) -> None:
     assert "\x1b" not in shown.output and "http://evil" in shown.output
 
 
+def test_bare_runs_lists_the_table_not_json(tmp_path: Path) -> None:
+    ws = Workspace(tmp_path)
+    save_sources(ws, [])
+    open_db(ws, migrate=True)
+    env = {"SIGHARVEST_HOME": str(ws.root)}
+    bare = CliRunner().invoke(app, ["runs"], env=env)
+    listed = CliRunner().invoke(app, ["runs", "list"], env=env)
+    assert bare.exit_code == 0 and "no update runs yet" in bare.output
+    assert bare.output == listed.output
+
+
 def test_clean_text() -> None:
     assert runs.clean_text(EVIL + "\ttab\nline\x07\x9b") == EVIL.replace("\x1b", "\ufffd") + "\ttab\nline\ufffd\ufffd"
     assert runs.clean_data({"k\x1b": ["a\x1b", 1, None]}) == {"k\ufffd": ["a\ufffd", 1, None]}
