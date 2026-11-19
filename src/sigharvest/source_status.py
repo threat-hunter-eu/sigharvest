@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from sigharvest.config import SourceConfig, Workspace, load_sources
 from sigharvest.models import Occurrence, SearchSummary, Source, SourceSummary
+from sigharvest.sources import public_url
 
 
 def workspace(s: Session) -> Workspace | None:
@@ -61,7 +62,7 @@ def pending(s: Session) -> list[dict[str, Any]]:
     return [
         {
             "name": source.name,
-            "url": source.url,
+            "url": public_url(source.url),
             "licence": source.licence,
             "priority": source.priority,
             "enabled": source.enabled,

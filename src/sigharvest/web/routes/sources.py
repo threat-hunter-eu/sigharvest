@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from sigharvest.index import GroupFilters, search_groups
 from sigharvest.models import LogicGroup, Source, SourceOverlap, SourceSummary
+from sigharvest.sources import public_url
 from sigharvest.web import queries
 from sigharvest.web.deps import Web, WebDep
 
@@ -61,7 +62,7 @@ def source_inputs(s: Session) -> dict[str, Any]:
         rows.append(
             {
                 "name": name,
-                "url": url,
+                "url": public_url(url),
                 "licence": licence,
                 "priority": priority,
                 "enabled": enabled,
@@ -213,6 +214,6 @@ def source_page(request: Request, web: WebDep, name: str, page: int = Query(1, g
             "rows": rows,
             "health": health,
             "licinfo": present.licence_info(source.licence),
-            "link": source.url.removesuffix(".git") if source.url.startswith("https://") else "",
+            "link": public_url(source.url).removesuffix(".git") if source.url.startswith("https://") else "",
         },
     )

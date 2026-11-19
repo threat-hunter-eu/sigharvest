@@ -23,6 +23,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- Credentials written into a source URL (`https://user:token@host/...`) were shown by `/sources`, `/sources/<name>` and `/api/sources` and written to a release's `manifest.json` and `ATTRIBUTION.md`; these now show the URL without them. Use `auth` for tokens.
 - Static site: its own 404 page (Pages showed GitHub's), keyboard-reachable scrollable rule text, underlined links in running text and no nested landmark on rule pages (axe: 0 serious/critical).
 - `priority: 0` in sources.yaml was rewritten as the default 50 whenever sources.yaml was saved (`sources add/enable/disable`, `discover`).
 - `dedupe --top N` named a different canonical copy than the full report and the index when two sources had the same priority (it ordered by first seen instead of source name and content hash).

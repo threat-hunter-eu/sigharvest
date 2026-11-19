@@ -46,7 +46,7 @@ from sigharvest.licensing import licence_class, redistributable
 from sigharvest.models import LogicGroup, Occurrence, RuleVersion, Source
 from sigharvest.publication import PublicationError, build_time, staged_directory
 from sigharvest.release_reader import file_digest, open_release
-from sigharvest.sources import file_link
+from sigharvest.sources import file_link, public_url
 
 FORMAT = 1
 
@@ -178,7 +178,7 @@ def _build(
     for r in sorted(sources.values(), key=lambda r: r.name):
         if not per_source.get(r.name):
             continue
-        row: dict[str, Any] = {"name": r.name, "type": r.type, "url": r.url, "commit": r.last_commit, "licence": lic.get(r.name),
+        row: dict[str, Any] = {"name": r.name, "type": r.type, "url": public_url(r.url), "commit": r.last_commit, "licence": lic.get(r.name),
                                "priority": r.priority, "rules": per_source.get(r.name, 0)}  # fmt: skip
         cfg = configs.get(r.name)
         if cfg is not None:
