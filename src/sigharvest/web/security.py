@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import base64
 import hmac
+import math
+import time
+from collections import deque
 from collections.abc import Callable
 from typing import Any
 
@@ -128,18 +131,59 @@ def authorised(header: str, token: str) -> bool:
 
 
 class TokenAuth:
-    """ASGI middleware: every HTTP request needs the token (`sigharvest serve --token-env VAR`), static files included."""
+    """ASGI middleware: every HTTP request needs the token (`sigharvest serve --token-env VAR`), static files included.
 
-    def __init__(self, app: Any, token: str) -> None:
+    A peer address that sends MAX_FAILURES wrong tokens within WINDOW_SECONDS is refused (429) until the oldest of
+    them leaves the window, even with the right token, so the token cannot be guessed at line rate. A request with no
+    Authorization header (a browser's first request) does not count; a successful login does not reset the count.
+    The peer is the TCP client: behind a reverse proxy every client shares the proxy's address.
+    """
+
+    MAX_FAILURES = 20
+    WINDOW_SECONDS = 60
+    MAX_PEERS = 4096
+
+    def __init__(self, app: Any, token: str, clock: Callable[[], float] = time.monotonic) -> None:
         self.app = app
         self.token = token
+        self.clock = clock
+        self.failures: dict[str, deque[float]] = {}
+
+    def _recent(self, peer: str, now: float) -> deque[float]:
+        times = self.failures.get(peer, deque())
+        while times and times[0] <= now - self.WINDOW_SECONDS:
+            times.popleft()
+        if not times:
+            self.failures.pop(peer, None)
+        return times
+
+    def _record(self, peer: str, now: float) -> None:
+        if peer not in self.failures and len(self.failures) >= self.MAX_PEERS:
+            for stale in [p for p, t in self.failures.items() if t[-1] <= now - self.WINDOW_SECONDS]:
+                del self.failures[stale]
+            if len(self.failures) >= self.MAX_PEERS:
+                del self.failures[next(iter(self.failures))]
+        times = self.failures.setdefault(peer, deque())
+        times.append(now)
+        while len(times) > self.MAX_FAILURES:
+            times.popleft()
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         if scope.get("type") != "http":
             await self.app(scope, receive, send)
             return
+        client = scope.get("client")
+        peer = str(client[0]) if client else ""
+        now = self.clock()
+        recent = self._recent(peer, now)
+        if len(recent) >= self.MAX_FAILURES:
+            wait = max(1, math.ceil(recent[0] + self.WINDOW_SECONDS - now))
+            await refusal(scope, "too many failed logins", 429, {"Retry-After": str(wait)})(scope, receive, send)
+            return
         header = next((v.decode("latin-1") for k, v in scope.get("headers", []) if k.lower() == b"authorization"), "")
         if not authorised(header, self.token):
+            if header:
+                self._record(peer, now)
             response = refusal(scope, "authentication required", 401, {"WWW-Authenticate": 'Basic realm="sigharvest"'})
             await response(scope, receive, send)
             return
