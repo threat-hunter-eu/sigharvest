@@ -17,16 +17,19 @@ This page takes you from nothing to a searchable, deduplicated Sigma index in on
 Requirements: **Python 3.12 or newer**, **Git**, and either [uv](https://docs.astral.sh/uv/) or
 [pipx](https://pipx.pypa.io/). Linux and macOS are supported; on Windows use WSL.
 
-<!-- doctest: skip network (installs from GitHub) -->
+<!-- doctest: skip network (installs from PyPI) -->
 ```bash
 # with uv (recommended)
-uv tool install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"
+uv tool install "sigharvest[convert]"
 
 # or with pipx
-pipx install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"
+pipx install "sigharvest[convert]"
 
 sigharvest --version
 ```
+
+The development version (the `main` branch) installs from Git:
+`uv tool install "sigharvest[convert] @ git+https://github.com/threat-hunter-eu/sigharvest"`.
 
 Both put a `sigharvest` command on your PATH in its own isolated environment. The `convert` extra installs the
 pySigma 2 query backends for Splunk, Loki and SQLite. For Elasticsearch/ES|QL, OpenSearch or Microsoft 365
@@ -66,7 +69,7 @@ sigharvest init ~/sigma
 cd ~/sigma
 ```
 
-### Quick start from a release pack (a few minutes, no git)
+### Quick start from a release pack (about ten minutes, no git)
 
 <!-- doctest -->
 ```bash
@@ -74,15 +77,18 @@ sigharvest init ~/sigma --from-release latest     # or a release download URL, o
 cd ~/sigma && sigharvest search mimikatz
 ```
 
-Measured with a 19,444-rule pack (2026-11-15, 22-core machine): about 1m30s in total, download not included. About
-1m of it is reading the rules into the database, one after another; the index (semantic hashes, families, full-text)
-takes most of the rest. Progress lines (`ingest: ...`, `index: ...`) show each step, also in a log or pipe.
+Measured with the full nightly pack (`rules-2026-11-19.2`: 66,887 rules from 595 sources, 2026-11-19, 22-core WSL2
+machine shared with other jobs): about 8 minutes in total. Downloading and checking the pack takes under a minute,
+reading the rules into the database, one after another, about 6 minutes, and the index (semantic hashes, families,
+full-text) about 2 minutes. Progress lines (`ingest: ...`, `index: ...`) show each step, also in a log or pipe.
 
 This downloads the nightly release pack (every file checked against its `SHA256SUMS`), writes its redistributable rules (permissive and
 copyleft, with their original paths) into `data/release/`, registers one local source per original source
 (`release-<name>`, with that source's licence and its LICENSE / NOTICE files) and indexes them. Search, export,
 `serve` and `site build` work at once. Rules that the pack only lists as metadata (no licence, restricted terms)
-are not included. `sigharvest update` later validates the rules; to move to the live repositories, run
+are not included. The rules are not validated yet, so `--validation ok` selects nothing until
+`sigharvest test --stage validate` (about 4 minutes for the full pack) or `sigharvest update` has run. To move to
+the live repositories, run
 `sigharvest init --force` (the curated preset) and then `sigharvest update`. `latest` is the newest `rules-*`
 release of `threat-hunter-eu/sigharvest-rules`, or of this repository (with a one-line note) while that one has none yet
 (`SIGHARVEST_RELEASE_REPO=owner/repo` to use another one, without fallback); it needs a published `rules-*` release

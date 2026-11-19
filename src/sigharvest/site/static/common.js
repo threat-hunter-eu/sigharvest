@@ -116,7 +116,7 @@
       var id = "yaml-" + d.lid;
       return el("details", { open: true }, [
         el("summary", null, "Sigma rule (YAML)"),
-        el("pre", { class: "yaml", id: id }, el("code", null, d.yaml)),
+        el("pre", { class: "yaml", id: id, tabindex: "0", "aria-label": "Sigma rule YAML" }, el("code", null, d.yaml)),
         el("p", null, el("button", { class: "btn", type: "button", "data-copy": id }, "copy YAML")),
       ]);
     }
@@ -180,7 +180,7 @@
     var snippetId = "embed-" + d.lid;
     aside.push(el("h2", null, "Embed"), el("details", null, [
       el("summary", null, "rule card for an article"),
-      el("pre", { class: "yaml snippet", id: snippetId }, el("code", null, S.embedSnippet(base, d.lid))),
+      el("pre", { class: "yaml snippet", id: snippetId, tabindex: "0", "aria-label": "Embed snippet" }, el("code", null, S.embedSnippet(base, d.lid))),
       el("p", null, el("button", { class: "btn", type: "button", "data-copy": snippetId }, "copy snippet")),
     ]));
     var main = [el("h2", null, "Rule"), S.yamlBlock(d), el("h2", null, "Licence and source"), S.licenceBlock(d)];
@@ -188,7 +188,7 @@
     var parts = [el("h1", null, d.title || "Untitled rule"), S.badges(d)];
     if (d.page) parts.push(el("p", { class: "muted" }, ["Static page: ", el("a", { href: S.ruleHref(base, d.lid, d.page) }, "permalink")]));
     if (d.description) parts.push(el("p", { class: "desc" }, d.description));
-    parts.push(el("div", { class: "grid2" }, [el("div", null, main), el("aside", null, aside)]));
+    parts.push(el("div", { class: "grid2" }, [el("div", null, main), el("div", { class: "side" }, aside)]));
     box.textContent = "";
     box.appendChild(el("article", null, parts));
   };

@@ -61,6 +61,40 @@ def test_complex_detections_use_the_author_description(detection: str) -> None:
     assert result.kind == "author" and text_of(result) == "Author text."
 
 
+def test_crafted_condition_is_bounded_before_the_tree_is_built(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Many selections and many `1 of x*` atoms: the parser stops early instead of matching every name per atom."""
+    import fnmatch
+
+    from sigharvest import summary as module
+
+    calls = 0
+    real = fnmatch.fnmatchcase
+
+    def counting(name: str, pattern: str) -> bool:
+        nonlocal calls
+        calls += 1
+        return real(name, pattern)
+
+    monkeypatch.setattr(module.fnmatch, "fnmatchcase", counting)
+    selections = "".join(f"  a{i}: x\n" for i in range(2000))
+    condition = " or ".join(["1 of a*"] * 100)
+    result = summarise(RULE % ("process_creation", f"{selections}  condition: {condition}"))
+    assert result.kind == "author" and result.reason == "condition too long"
+    assert calls < 1000
+
+
+def test_too_many_tokens_use_the_author_description() -> None:
+    condition = " or ".join(["s1"] * 200)
+    result = summarise(RULE % ("process_creation", f"  s1: {{a: 1}}\n  condition: {condition}"))
+    assert result.kind == "author" and result.reason == "condition too long"
+
+
+def test_many_exclusion_filters_are_still_counted() -> None:
+    filters = "".join(f"  filter_{i}: {{User: u{i}}}\n" for i in range(40))
+    det = f"  sel:\n    Image|endswith: a.exe\n{filters}  condition: sel and not 1 of filter_*"
+    assert summary("process_creation", det).endswith("unless one of 40 exclusion filters matches.")
+
+
 def test_summary_is_deterministic_and_parts_are_plain_text() -> None:
     raw = RULE % ("process_creation", "  sel:\n    CommandLine|contains: '<script>'\n  condition: sel")
     assert summarise(raw) == summarise(raw)

@@ -849,6 +849,11 @@ def explicit_status(value: str | None, statuses: tuple[str, ...]) -> bool:
     return bool(value) and any((norm.status(v) or v) in statuses for v in _choices(str(value)))
 
 
+def _like_literal(value: str) -> str:
+    """Escape LIKE wildcards so a filter value matches itself only; pair with ESCAPE '\\'."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _choices(value: str) -> list[str]:
     return [v.strip().lower() for v in value.split(",") if v.strip()][:100]
 
@@ -923,8 +928,8 @@ def _base(
         add("coverage_tags", "EXISTS (SELECT 1 FROM json_each(g.tags) t JOIN json_each(:coverage_tags) wanted ON lower(t.value)=wanted.value)")
         params["coverage_tags"] = json.dumps(["attack." + t.lower() for t in f.coverage_tags.split(",")[:1000]])
     if f.tag:
-        add("tag", "lower(g.tags) LIKE :tag")
-        params["tag"] = f'%"{norm.tag(f.tag) or f.tag.lower()}%'
+        add("tag", "lower(g.tags) LIKE :tag ESCAPE '\\'")
+        params["tag"] = f'%"{_like_literal(norm.tag(f.tag) or f.tag.lower())}%'
     if f.source and skip != "source":
         from sigharvest.search_summary import source_members
 
@@ -955,8 +960,8 @@ def _base(
         )
         params["collection"] = f.collection
     if f.backend and skip != "backend":
-        add("backend", "g.converts LIKE :backend")
-        params["backend"] = f'%"{f.backend}"%'
+        add("backend", "g.converts LIKE :backend ESCAPE '\\'")
+        params["backend"] = f'%"{_like_literal(f.backend)}"%'
     if f.profile and skip != "profile":
         from sigharvest import profiles
 
@@ -967,8 +972,8 @@ def _base(
     if not f.include_deprecated and skip != "status" and not explicit_status(f.status, ("deprecated", "unsupported")):
         add("deprecated", "coalesce(g.status, '') NOT IN ('deprecated', 'unsupported')")
     if f.flag:
-        add("flag", "g.quality_flags LIKE :flag")
-        params["flag"] = f'%"{f.flag}"%'
+        add("flag", "g.quality_flags LIKE :flag ESCAPE '\\'")
+        params["flag"] = f'%"{_like_literal(f.flag)}"%'
     elif not f.include_junk:
         add("junk", "g.junk = 0")
     aliases: dict[str, str] = {}
