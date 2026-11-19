@@ -128,7 +128,8 @@ R = TypeVar("R")
 
 def _remove_lease_skeleton(root: Path) -> None:
     """A command that failed in a workspace folder it created (init --from-release with a bad pack) leaves no empty
-    folder behind. Only the lease's own files are removed, and only when nothing else is there."""
+    folder behind. Only the lease's own files are removed, and only when nothing else is there. The caller holds the
+    lease: a writer waiting on the unlinked file sees it is gone and reopens the path (UpdateLock.acquire)."""
     data = root / "data"
     guard = data / "sigharvest.lock"
     try:
@@ -179,13 +180,14 @@ def mutation_command(
                 if workspace_arg is not None:
                     ws = Workspace(Path(values[workspace_arg] or os.environ.get("SIGHARVEST_HOME") or ".").resolve())
                     existed = ws.root.exists()
-                try:
-                    with mutation_lease(ws, timeout=float(values[wait_arg] or 0) if wait_arg else 0):
+                with mutation_lease(ws, timeout=float(values[wait_arg] or 0) if wait_arg else 0):
+                    try:
                         return fn(*args, **kwargs)
-                except BaseException:
-                    if not existed:
-                        _remove_lease_skeleton(ws.root)
-                    raise
+                    except BaseException:
+                        # Only the holder cleans up, before it releases: a refused command never created these files.
+                        if not existed:
+                            _remove_lease_skeleton(ws.root)
+                        raise
             except LockHeld as exc:
                 error(escape(str(exc)))
                 raise typer.Exit(2) from None

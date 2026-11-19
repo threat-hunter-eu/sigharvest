@@ -22,6 +22,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- A refused (busy) `init` on a new folder no longer deletes the lock file of the `init` that holds it, which let a
+  third writer take the workspace lock at the same time.
 - The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
