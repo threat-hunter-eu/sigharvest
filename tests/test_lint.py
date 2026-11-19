@@ -61,3 +61,13 @@ def test_lint_and_pull_commands(tmp_path: Path, monkeypatch) -> None:  # type: i
     assert run.invoke(app, ["lint", str(rule), "--fail-on", "never"]).exit_code == 0
     assert run.invoke(app, ["site", "build", "--help"]).exit_code == 0
     assert run.invoke(app, ["pull", str(tmp_path / "nope")]).exit_code == 2
+
+
+def test_lint_lines_follow_each_document_of_a_stream(tmp_path: Path) -> None:
+    broken = "title: b\nlogsource: {product: windows}\ndetection:\n  sel: [unclosed\n"
+    plain = tmp_path / "plain.yml"
+    plain.write_text("title: a\n---\n" + broken)
+    leading = tmp_path / "leading.yml"
+    leading.write_text("---\ntitle: a\n---\n" + broken)
+    found = {f.path: f.line for f in lint_paths([tmp_path], Corpus()) if f.rule == "invalid-yaml"}
+    assert found == {"plain.yml": 3, "leading.yml": 4}  # the first line of the broken document, not of the file's first separator
