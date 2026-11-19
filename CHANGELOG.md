@@ -11,6 +11,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Changed
 
+- README, getting started and the install hints of the CLI and web UI install the PyPI package (`uv tool install "sigharvest[convert]"`); installing from Git stays as the development option.
 - Tidier repository root: CONTRIBUTING, SECURITY and CODE_OF_CONDUCT moved to `.github/`, the systemd units to
   `docs/deploy/systemd/`, maintainer tooling to `scripts/maintainer/`; a shorter README, with the screenshot tour and
   How it works in `docs/features.md`.
@@ -22,6 +23,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- Static site: its own 404 page (Pages showed GitHub's), keyboard-reachable scrollable rule text, underlined links in running text and no nested landmark on rule pages (axe: 0 serious/critical).
 - `priority: 0` in sources.yaml was rewritten as the default 50 whenever sources.yaml was saved (`sources add/enable/disable`, `discover`).
 - `dedupe --top N` named a different canonical copy than the full report and the index when two sources had the same priority (it ordered by first seen instead of source name and content hash).
 - `sigharvest runs` without a subcommand printed JSON instead of the table `runs list` shows.
