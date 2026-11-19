@@ -53,6 +53,26 @@ def test_export_family_yaml_and_jsonl(tmp_path: Path) -> None:
         assert row["yaml"] is None and "no licence" in row["text_skipped"]
 
 
+def test_export_yaml_keeps_rules_whose_paths_collide(tmp_path: Path) -> None:
+    """Two logics with the same title, log source and first 8 hex digits of the hash get two files, not one."""
+    ws = workspace(tmp_path, make_repo(tmp_path))
+    assert sync_all(ws)[0].status == "ok"
+    S = open_db(ws, migrate=True)
+    with S() as s:
+        rebuild(s)
+        a, b, c = s.scalars(select(LogicGroup).order_by(LogicGroup.logic_hash)).all()[:3]
+        b.title, b.logic_hash = a.title, a.logic_hash[:8] + "0" * 8 + b.logic_hash[16:]
+        c.title, c.logic_hash = a.title, a.logic_hash[:8] + "0" * 8 + c.logic_hash[16:]
+        s.flush()
+        out = tmp_path / "out"
+        n = export_yaml(s, select_groups(s, "logic", None, GroupFilters(), None), out, include_private=True)
+        manifest = [json.loads(line) for line in (out / "manifest.jsonl").read_text().splitlines()]
+        paths = [m["path"] for m in manifest]
+        assert n == len(manifest) == len(list(out.rglob("*.yml"))) == len(set(paths))
+        for m in manifest:
+            assert yaml.safe_load((out / m["path"]).read_text())["id"] == m["rule_id"]
+
+
 def test_export_zip_csv_and_all_copies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import csv
     import zipfile

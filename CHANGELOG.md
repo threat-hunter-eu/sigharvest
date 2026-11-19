@@ -23,6 +23,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- `export --format yaml` no longer writes two rules with the same title, log source and first 8 hex digits of the
+  logic hash to one file (one rule was lost); the second gets a longer name, as in the zip.
 - A `type: http` source with an `auth` token refuses a plain `http://` URL instead of sending the token in cleartext.
 - A release rule path starting with exactly two slashes (`//etc/x`) kept its root after sanitising; it now
   becomes relative like any other rooted path (the write guard still refused it).
