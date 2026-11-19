@@ -22,6 +22,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- `export --format yaml` no longer writes two rules with the same title, log source and first 8 hex digits of the
+  logic hash to one file (one rule was lost); the second gets a longer name, as in the zip.
 - The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming

@@ -75,7 +75,8 @@ sigharvest export --technique T1059.001 --format zip --out powershell.zip
 
 Each file holds the YAML of the rule's canonical copy as published by its source, so `author`, `references` and
 the rest of the metadata stay intact (a rule that inherits from a legacy multi-document collection is written in
-its effective, self-contained form). Files are laid out as `<product>/<category>/<title>_<logic8>.yml`;
+its effective, self-contained form). Files are laid out as `<product>/<category>/<title>_<logic8>.yml`
+(when two rules would share a file, the second gets the next 8 hex digits of its logic hash, as in the zip);
 `--unit all` writes every copy as `<rule id>_<content8>.yml`. `manifest.jsonl` lists, for every rule, its
 sources, licence and canonical copy.
 
