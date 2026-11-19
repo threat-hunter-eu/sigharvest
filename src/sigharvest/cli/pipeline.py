@@ -105,7 +105,9 @@ def _init_from_release(ws: Workspace, location: str, sums_sha256: str | None = N
         # Progress lines in a log or pipe too (a terminal gets the live status): one per step, and per source at
         # most every HEARTBEAT_SECONDS while ingesting; keepalive repeats a long step so the output never stalls.
         phase = Heartbeat("init --from-release")
-        semantic = Heartbeat("index: semantic hashes")
+        # Started by the first hash count, not here: download and ingest come first, and their minutes would turn
+        # the rate-based time left into hours.
+        semantic: list[Heartbeat] = []
 
         def say(message: str) -> None:
             status.update(message)
@@ -116,7 +118,9 @@ def _init_from_release(ws: Workspace, location: str, sums_sha256: str | None = N
 
         def hashes(done: int, total: int) -> None:
             status.update(f"semantic hashes: {done:,}/{total:,}")
-            semantic(done, total)
+            if not semantic:
+                semantic.append(Heartbeat("index: semantic hashes"))
+            semantic[0](done, total)
 
         with phase.keepalive():
             boot = bootstrap(

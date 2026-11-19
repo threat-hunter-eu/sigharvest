@@ -272,3 +272,31 @@ def test_cleanup_error_during_cancellation_records_a_cancelled_run(tmp_path: Pat
     with pytest.raises(Cancelled):
         run_update(ws)
     assert latest(ws).status == "cancelled" and not _published(ws, "Rule 99")
+
+
+def test_untrusted_report_text_cannot_add_markdown() -> None:
+    # Rule titles, ids, log sources, source names and error text come from upstream; the nightly job publishes the
+    # markdown report as its GitHub step summary, which renders links, images and emphasis.
+    link = "Update required [re-authenticate](https://attacker.example) ![x](https://attacker.example/i.png) <b>*x*</b>"
+    data = runs.report_skeleton(_run(), None) | {
+        "reasons": ["error: boom\n\n# Injected heading\n[click](https://attacker.example)"],
+        "notes": [],
+        "new": [
+            {"logic": "a" * 64, "title": link, "level": "[l](https://attacker.example)", "logsource": "win|dows"}
+            | {"score": 1.0, "family": 1, "sources": ["s"], "junk": False}
+        ],
+        "changed": [
+            {"rule_id": "[r](https://attacker.example)", "title": link, "old": "b" * 64, "new": "c" * 64, "sources": ["s"]}
+            | {"diff": ["+  x: a", " ```", "````", "+[click](https://attacker.example)"]}
+        ],
+        "removed": [{"logic": "d" * 64, "title": link}],
+        "sources": {"[s](https://attacker.example)": {"new": 1, "changed": 0, "removed": 0, "error": "e\n- [click](https://attacker.example)"}},
+        "collections": [{"collection": link, "updated": [{"title": link, "old": "e" * 64, "new": "f" * 64}], "missing": []}],
+    }
+    md = runs.render_markdown(data)
+    fence = "`````"  # longer than the longest backtick run in the diff, so " ```" cannot close it
+    body, after = md.split(fence + "diff\n", 1)[0], md.split(fence + "diff\n", 1)[1].split("\n" + fence + "\n", 1)[1]
+    outside = body + after
+    assert "](" not in outside.replace("\\](", "") and "<b>" not in outside and "\n# Injected" not in outside
+    assert "**Needs a look:**\n\n- error: boom  \\# Injected heading \\[click\\](https://attacker.example)\n" in md
+    assert "| win\\|dows |" in md and "\\!\\[x\\]" in outside and "\\*x\\*" in outside

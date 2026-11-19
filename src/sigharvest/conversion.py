@@ -51,9 +51,9 @@ NO_PYSIGMA2_RELEASE = {
     "opensearch": "pysigma-backend-opensearch",
     "microsoft365defender": "pysigma-backend-kusto",
 }
-# Where install hints point. sigharvest is not on PyPI yet: every hint (CLI and web) installs from the repository.
-# At launch, when the package is published, set this to "" and the hints become `uv tool install "sigharvest[...]"`.
-INSTALL_SOURCE = "git+https://github.com/threat-hunter-eu/sigharvest"
+# Where install hints point: "" = PyPI (`uv tool install "sigharvest[...]"`); a "git+https://..." URL would make every
+# hint (CLI and web) install from the repository instead.
+INSTALL_SOURCE = ""
 
 
 def install_command(extra: str = "convert") -> str:

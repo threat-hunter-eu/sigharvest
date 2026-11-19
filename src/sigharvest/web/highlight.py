@@ -16,7 +16,8 @@ MAX_BYTES = 300_000  # larger documents (IOC lists) are shown plain
 _KEY = re.compile(r"""^(?P<indent>\s*)(?P<dash>-\s+)?(?P<key>"[^"]*"|'[^']*'|[^\s#'"\-][^:#]*?|-[^\s:#][^:#]*?)(?P<colon>:)(?=\s|$)(?P<rest>.*)$""")
 _DASH = re.compile(r"^(?P<indent>\s*)(?P<dash>-)(?P<rest>(\s.*)?)$")
 _LITERAL = re.compile(r"^(true|false|null|yes|no|~|-?\d+(\.\d+)?)$", re.IGNORECASE)
-_COND_WORDS = re.compile(r"(\b(?:and|or|not|of|all|them|near|by)\b|\d+ of|[()|])")
+# (?<!\d): a count starts at the first digit of a run, so a long run without " of" is scanned once, not once per digit.
+_COND_WORDS = re.compile(r"(\b(?:and|or|not|of|all|them|near|by)\b|(?<!\d)\d+ of|[()|])")
 TOP = {"title", "id", "status", "description", "references", "author", "date", "modified", "tags", "logsource", "detection",
        "falsepositives", "level", "related", "fields", "correlation", "filter", "license", "name", "taxonomy", "scope"}  # fmt: skip
 
