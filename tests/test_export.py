@@ -97,6 +97,39 @@ def test_export_zip_csv_and_all_copies(tmp_path: Path, monkeypatch: pytest.Monke
     assert empty.exit_code == 1 and "no rules were exported" in empty.output
 
 
+@pytest.mark.parametrize(("name", "stem"), [("..", "rules"), (".", "rules"), ("...", "rules"), ("", "rules"), ("a/../b", "a_.._b"), (".hidden", ".hidden")])
+def test_zip_stem_is_never_dots_only(name: str, stem: str) -> None:
+    from sigharvest.export_zip import safe_stem
+    from sigharvest.web import downloads
+
+    assert safe_stem(name) == stem and downloads.safe_stem(name) == stem
+
+
+def test_export_zip_dotdot_name_and_retried_member_collision(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import zipfile
+
+    from sigharvest import export_zip as zipper
+    from sigharvest.export import export_zip
+
+    ws = workspace(tmp_path, make_repo(tmp_path))
+    assert sync_all(ws)[0].status == "ok"
+    with open_db(ws, migrate=True)() as s:
+        rebuild(s)
+        groups = list(select_groups(s, "logic", None, GroupFilters(), None))
+        out = tmp_path / "...zip"  # stem ".." would make every member "../..."
+        assert export_zip(s, groups, out, include_private=True) == (5, 0)
+        with zipfile.ZipFile(out) as zf:
+            assert all(n.startswith("rules/") for n in zf.namelist())
+        # The first copy takes the name the third one's retry (name + logic_hash[8:16]) would give.
+        g0, g1, g2 = groups[:3]
+        names = {g0.logic_hash: f"r_{g2.logic_hash[8:16]}.yml", g1.logic_hash: "r.yml", g2.logic_hash: "r.yml"}
+        monkeypatch.setattr(zipper, "rel_path", lambda g, layout: names[g.logic_hash])
+        assert export_zip(s, [g0, g1, g2], tmp_path / "c.zip", include_private=True) == (3, 0)
+        with zipfile.ZipFile(tmp_path / "c.zip") as zf:
+            members = [n for n in zf.namelist() if n.endswith(".yml")]
+        assert len(members) == len(set(members)) == 3
+
+
 def test_exact_correlation_context_and_stale_results(tmp_path):
     from sigharvest.export_selection import _contexts
     from sigharvest.testing import siblings
