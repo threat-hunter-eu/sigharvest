@@ -26,6 +26,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
   with most of them done; they now charge only the versions still to test, 16 KiB each (measured: about 600 bytes).
+- A rule page whose `condition:` line held a long digit run (for example `1111...1x`) took minutes to render: the
+  condition highlighter rescanned the run from every digit. It is now scanned once.
 
 ## [0.1.0] - 2026-11-17
 
