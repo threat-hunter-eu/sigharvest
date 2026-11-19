@@ -364,21 +364,30 @@ def update(
                 except (Cancelled, KeyboardInterrupt):
                     cancelled = True
                 except Exception as exc:
-                    if not cancellation_requested():
-                        # Anything escaping _update skipped its outcome block; without this the
-                        # run stayed "running" and the traceback reached only stderr.
-                        from sigharvest.update_publication import record_failure
+                    failed = False
+                    try:
+                        if not cancellation_requested():
+                            # Anything escaping _update skipped its outcome block; without this the
+                            # run stayed "running" and the traceback reached only stderr.
+                            from sigharvest.update_publication import record_failure
 
-                        log.exception("update failed before its outcome was recorded")
-                        try:
-                            record_failure(ws, run_id=(CONTEXT.get() or {}).get("run_id"), error=f"{type(exc).__name__}: {exc}")
-                        except Exception as failure:
-                            log.exception("could not record the failed update's outcome")
-                            exc.add_note(f"recording the failed run also failed: {type(failure).__name__}: {failure}")
+                            log.exception("update failed before its outcome was recorded")
+                            try:
+                                record_failure(ws, run_id=(CONTEXT.get() or {}).get("run_id"), error=f"{type(exc).__name__}: {exc}")
+                            except Exception as failure:
+                                log.exception("could not record the failed update's outcome")
+                                exc.add_note(f"recording the failed run also failed: {type(failure).__name__}: {failure}")
+                            failed = True
+                        else:
+                            # A cleanup error raised while the operator's cancellation unwinds the
+                            # gate or report-only path is that cancellation, as in the stage loop.
+                            log.warning("Cleanup raised %s during cancellation; recording the operator cancellation", type(exc).__name__)
+                    except Cancelled:
+                        # A SIGTERM while the failure is being recorded escapes the sibling handler:
+                        # record it as the cancellation below, or the row stays "running".
+                        log.warning("Cancelled while recording a failed update; recording the operator cancellation")
+                    if failed:
                         raise
-                    # A cleanup error raised while the operator's cancellation unwinds the
-                    # gate or report-only path is that cancellation, as in the stage loop.
-                    log.warning("Cleanup raised %s during cancellation; recording the operator cancellation", type(exc).__name__)
                     cancelled = True
                 if cancelled:
                     from sigharvest.update_publication import record_interruption
@@ -606,9 +615,12 @@ def _update(
             note(f"{abandoned} earlier update run(s) never finished; recorded as interrupted")
         run = UpdateRun(counts={"phase": "sync"})
         s.add(run)
-        s.commit()
+        s.flush()
         run_id, started = run.id, run.started_at
+        # Publish the id before the row is durable: a SIGTERM right after the commit must still
+        # let record_interruption close it.
         CONTEXT.set((CONTEXT.get() or {}) | {"run_id": run_id})
+        s.commit()
         count("run.started")
         log.info("update %d started", run_id, extra={"event": "run.started"})
         with _step("snapshot", durations):
