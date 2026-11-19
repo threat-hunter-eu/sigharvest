@@ -40,6 +40,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   and `site build` escapes Rich markup in release errors.
 - The `template_title` check took quadratic time on a title full of unclosed `$(` or `{{`, so one hostile rule could
   stall `index`, `update` or `lint` for hours; it is now linear, with the same matches.
+- Report and changes text scrubbing no longer backtracks quadratically on a long URL-like token (such as a rule title
+  made of repeated `http://`), which could stall `update` reports, `changes` and site builds.
 
 ## [0.1.0] - 2026-11-17
 
