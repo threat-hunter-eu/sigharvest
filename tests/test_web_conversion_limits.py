@@ -3,6 +3,10 @@ through a bounded queue, expensive GETs refuse cross-site requests, and a single
 
 from __future__ import annotations
 
+import os
+import signal
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -36,6 +40,28 @@ def test_a_conversion_over_its_deadline_is_killed_and_the_slot_recovers(monkeypa
     monkeypatch.setattr(ondemand, "DEADLINE", 120.0)
     ok = ondemand.convert(big_rule(3), "splunk")
     assert ok.status == "ok" and ok.queries
+    ondemand.shutdown()
+
+
+def test_a_slot_whose_idle_worker_died_starts_a_fresh_worker() -> None:
+    """An idle worker that dies between conversions (OOM killer, operator) breaks its pool; the next conversion on
+    that slot starts a new worker instead of failing, and no slot keeps the broken pool."""
+    ondemand.shutdown()
+    conversion._on_demand.clear()
+    assert ondemand.convert(big_rule(5), "splunk").status == "ok"
+    pool = ondemand._pool()
+    used = [s for s in list(pool.queue) if s.executor is not None]
+    assert len(used) == 1
+    executor = used[0].executor
+    for pid in list(executor._processes):
+        os.kill(pid, signal.SIGKILL)
+    deadline = time.monotonic() + 10
+    while not executor._broken and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert executor._broken
+    statuses = [ondemand.convert(big_rule(6 + i), "splunk").status for i in range(2 * ondemand.SLOTS)]
+    assert statuses == ["ok"] * (2 * ondemand.SLOTS)
+    assert all(s.executor is None or not s.executor._broken for s in list(pool.queue))
     ondemand.shutdown()
 
 
