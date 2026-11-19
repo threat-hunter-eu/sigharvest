@@ -110,7 +110,7 @@ Used only to report near-duplicates (same slug, different logic).
 | situation | meaning | what sigharvest does |
 |---|---|---|
 | same `content_hash` in several places | exact copy | one version, several occurrences |
-| same `logic_hash`, different content | duplicate logic | all kept; the canonical copy is the one from the source with the lowest `priority` number, then the earliest first seen |
+| same `logic_hash`, different content | duplicate logic | all kept; the canonical copy is the one from the source with the lowest `priority` number, then the source name, content hash and path in sort order (`index.canonical_key`) |
 | same `rule_id`, different `logic_hash` | conflicting versions | all kept as history of that id; reported as a warning |
 | same `title_slug`, different `logic_hash` | possible near-duplicate | reported only |
 
