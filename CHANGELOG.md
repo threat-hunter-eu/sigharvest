@@ -23,6 +23,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- A `type: http` source with an `auth` token refuses a plain `http://` URL instead of sending the token in cleartext.
 - A release rule path starting with exactly two slashes (`//etc/x`) kept its root after sanitising; it now
   becomes relative like any other rooted path (the write guard still refused it).
 - `%` and `_` in the tag, backend and flag search filters (CLI, web UI and API) acted as LIKE wildcards, so `--backend %` matched every converted rule and `_` matched any character; they now match literally.
