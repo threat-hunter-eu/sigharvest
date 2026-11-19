@@ -23,6 +23,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- A release rule path starting with exactly two slashes (`//etc/x`) kept its root after sanitising; it now
+  becomes relative like any other rooted path (the write guard still refused it).
 - `%` and `_` in the tag, backend and flag search filters (CLI, web UI and API) acted as LIKE wildcards, so `--backend %` matched every converted rule and `_` matched any character; they now match literally.
 - Static site: its own 404 page (Pages showed GitHub's), keyboard-reachable scrollable rule text, underlined links in running text and no nested landmark on rule pages (axe: 0 serious/critical).
 - `priority: 0` in sources.yaml was rewritten as the default 50 whenever sources.yaml was saved (`sources add/enable/disable`, `discover`).
