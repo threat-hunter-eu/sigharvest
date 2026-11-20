@@ -338,7 +338,9 @@ def test_control_characters_never_reach_the_terminal(tmp_path: Path) -> None:
     commit(repo, "evil")
     assert update(ws)[0] == 0
     with open_db(ws, migrate=True)() as s:
-        assert s.scalars(select(LogicGroup.title).where(LogicGroup.title.startswith("Rule 5"))).one().count("\x1b") == 5
+        # ingest already replaces the 5 ESC characters of the title with U+FFFD before storing it
+        stored = s.scalars(select(LogicGroup.title).where(LogicGroup.title.startswith("Rule 5"))).one()
+        assert "\x1b" not in stored and stored.count("�") == 5
     run = latest(ws)
     md, data = report(ws, run)
     raw_json = (ws.root / run.report).with_suffix(".json").read_text()  # type: ignore[operator]
