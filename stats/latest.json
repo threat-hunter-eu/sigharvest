@@ -1,18 +1,18 @@
 {
  "by_licence_class": {
-  "copyleft": 23485,
-  "none": 30073,
+  "copyleft": 23486,
+  "none": 30083,
   "permissive": 43565,
   "restricted": 1277
  },
- "families": 76752,
- "metadata_only": 31350,
- "rules": 98400,
+ "families": 76763,
+ "metadata_only": 31360,
+ "rules": 98411,
  "sources": 1166,
  "techniques": 1203,
- "with_yaml": 67050,
+ "with_yaml": 67051,
  "zip": {
-  "copyleft": 23485,
+  "copyleft": 23486,
   "permissive": 43565
  }
 }
