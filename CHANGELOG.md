@@ -23,6 +23,7 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- Exports no longer abort when a rule's `license:` contains a backslash (it was read as a regex replacement template in the licence notices).
 - `export --format yaml` no longer writes two rules with the same title, log source and first 8 hex digits of the
   logic hash to one file (one rule was lost); the second gets a longer name, as in the zip.
 - A `type: http` source with an `auth` token refuses a plain `http://` URL instead of sending the token in cleartext.
