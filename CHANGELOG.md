@@ -24,6 +24,12 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 ### Fixed
 
 - Exports no longer abort when a rule's `license:` contains a backslash (it was read as a regex replacement template in the licence notices).
+- `export --format yaml` no longer writes two rules with the same title, log source and first 8 hex digits of the
+  logic hash to one file (one rule was lost); the second gets a longer name, as in the zip.
+- A `type: http` source with an `auth` token refuses a plain `http://` URL instead of sending the token in cleartext.
+- A release rule path starting with exactly two slashes (`//etc/x`) kept its root after sanitising; it now
+  becomes relative like any other rooted path (the write guard still refused it).
+- `%` and `_` in the tag, backend and flag search filters (CLI, web UI and API) acted as LIKE wildcards, so `--backend %` matched every converted rule and `_` matched any character; they now match literally.
 - Static site: its own 404 page (Pages showed GitHub's), keyboard-reachable scrollable rule text, underlined links in running text and no nested landmark on rule pages (axe: 0 serious/critical).
 - `priority: 0` in sources.yaml was rewritten as the default 50 whenever sources.yaml was saved (`sources add/enable/disable`, `discover`).
 - `dedupe --top N` named a different canonical copy than the full report and the index when two sources had the same priority (it ordered by first seen instead of source name and content hash).
@@ -38,6 +44,17 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   at once (about 190 GB for 1,201 sources).
 - Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
   with most of them done; they now charge only the versions still to test, 16 KiB each (measured: about 600 bytes).
+- A SIGTERM just after `update` created its run row, or while it recorded a failed run, left the row `running`
+  after a clean stop; it is now recorded as `cancelled`.
+- Upstream file paths, rule titles and error text can no longer add Markdown (links, images, headings) to SKIPPED.md
+  or the run report: links to source files are percent-encoded and report text is escaped.
+- `export --format zip --out .../...zip` named the zip's top folder `..`, so every member was `../...`; a name of
+  dots only now gives `rules`. A zip member whose collision retry (`_<logic_hash[8:16]>`) was taken was written twice.
+- An on-demand conversion slot whose idle worker had died (OOM killer, operator) was put back broken, so every
+  second rule-page conversion failed until the server restarted; the slot now starts a fresh worker.
+- `site`: a licence id with a long digit run no longer stalls the build (the licence-link pattern backtracked quadratically).
+- A rule page whose `condition:` line held a long digit run (for example `1111...1x`) took minutes to render: the
+  condition highlighter rescanned the run from every digit. It is now scanned once.
 - Terminal escape sequences (ESC/C0/C1 controls) in upstream rule tags, descriptions, file paths, detection keys,
   converted queries and error messages reached the terminal; the CLI now prints every control character as U+FFFD,
   and `site build` escapes Rich markup in release errors.
@@ -49,8 +66,13 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   clock started with the download; it now starts with the hashing.
 - An export with `--validation` in a workspace that has no validation results yet (`init --from-release`) only said
   "no rule matches these filters"; it now says that nothing is validated and to run `sigharvest test --stage validate`.
+- The weekly discovery workflow updated the first open PR from a branch named `automation/discover`, which could be
+  a fork PR; it now picks only a PR from the repository itself and otherwise opens its own.
 - Docs: the `--with-dependencies` example exported the whole corpus and always failed (limit of 100 selected
   rules); measured `init --from-release` timings for the full nightly pack.
+- A rule page or `/api/rule` for a third-party rule with thousands of selections and a long `1 of x* or ...` condition
+  could use gigabytes of memory and minutes of CPU in the plain-language summary; the condition parser now stops at
+  256 tokens or 256 selection references and shows the rule's own description.
 
 ## [0.1.0] - 2026-11-17
 

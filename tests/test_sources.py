@@ -68,3 +68,13 @@ def test_priority_zero_survives_a_save_and_load(tmp_path) -> None:  # type: igno
     assert cfg.to_dict()["priority"] == 0
     save_sources(ws, [cfg])
     assert load_sources(ws)[0].priority == 0
+
+
+def test_file_link_percent_encodes_untrusted_paths_and_commits() -> None:
+    # A file name from a source repository must not end the link or add Markdown where the link is written.
+    hostile = "rules/x>\n\n[Updated rule pack](https://attacker.example)\n<.yml"
+    link = file_link("https://github.com/a/b.git", "abc", hostile)
+    assert link is not None and link.startswith("https://github.com/a/b/blob/abc/rules/")
+    assert not any(c in link for c in "\n <>[]()")
+    assert file_link("https://github.com/a/b", "a/b c", "my rule.yml") == "https://github.com/a/b/blob/a%2Fb%20c/my%20rule.yml"
+    assert file_link("https://github.com/a/b", None, "bad\udcffname.yml") == "https://github.com/a/b/blob/HEAD/bad%3Fname.yml"

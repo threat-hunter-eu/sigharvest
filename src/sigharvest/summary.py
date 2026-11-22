@@ -21,6 +21,11 @@ MAX_VALUES = 6
 MAX_FIELDS = 4
 MAX_FILTERS = 3
 MAX_VALUE_CHARS = 80
+# Bounds on the condition parser so a crafted third-party rule cannot make it spend memory or CPU before the
+# MAX_SELECTIONS check: tokens in the condition, and selection references in the whole tree (an `N of x*` atom
+# counts each name it matches). Real rules stay far below both.
+MAX_TOKENS = 256
+MAX_REFS = 256
 
 Part = tuple[str, str]  # (kind, text): kind is text, b (bold), code (a value) or field (a field name)
 
@@ -181,6 +186,8 @@ def _tokens(text: str) -> list[str]:
         m = _TOKEN.match(text, pos)
         if not m or m.end() == pos:
             raise _TooComplex("condition syntax")
+        if len(out) >= MAX_TOKENS:
+            raise _TooComplex("condition too long")
         out.append(" ".join(m.group(1).lower().split()) if re.fullmatch(r"(and|or|not|\d+\s+of|all\s+of)", m.group(1).strip(), re.I) else m.group(1))
         pos = m.end()
     return out
@@ -193,6 +200,12 @@ class _Parser:
         self.t = tokens
         self.i = 0
         self.names = names
+        self.refs = 0
+
+    def ref(self) -> None:
+        self.refs += 1
+        if self.refs > MAX_REFS:
+            raise _TooComplex("condition too long")
 
     def peek(self) -> str | None:
         return self.t[self.i] if self.i < len(self.t) else None
@@ -239,13 +252,18 @@ class _Parser:
             return node
         if tok.endswith(" of"):
             pattern = self.take()
-            matched = list(self.names) if pattern == "them" else [n for n in self.names if fnmatch.fnmatchcase(n, pattern)]
+            matched: list[str] = []
+            for n in self.names:
+                if pattern == "them" or fnmatch.fnmatchcase(n, pattern):
+                    self.ref()
+                    matched.append(n)
             if not matched:
                 raise _TooComplex("pattern matches nothing")
             if len(matched) == 1:
                 return ("sel", matched[0])
             return ("and" if tok == "all of" else "or", [("sel", n) for n in matched])
         if tok in self.names:
+            self.ref()
             return ("sel", tok)
         raise _TooComplex(f"unknown selection {tok}")
 

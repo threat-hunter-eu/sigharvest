@@ -441,9 +441,12 @@ def sync_http(src: SourceConfig, ws: Workspace) -> SyncResult:
     """Download an archive or a single file over http(s) into corpus/<name>/ and diff it with the previous run."""
     dest = ws.source_dir(src.name)
     before = _hash_tree(dest) if dest.exists() else {}
-    headers = {"Authorization": f"Bearer {src.token()}"} if src.token() else {}
+    token = src.token()
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     if not src.url.startswith(("https://", "http://")):
         raise SyncError(f"http source must use http(s): {src.url!r}")
+    if token and not src.url.startswith("https://"):
+        raise SyncError(f"refusing to send the {src.auth} token over plain http: {src.url!r}; use https")
     skipped_large = 0
     buf = bytearray()
     with httpx.Client(follow_redirects=True, timeout=120, headers=headers) as client, client.stream("GET", src.url) as resp:
