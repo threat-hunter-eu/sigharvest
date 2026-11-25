@@ -38,7 +38,7 @@ from sigharvest.attack_score import Context as AttackScoreContext
 from sigharvest.attack_score import credit as attack_metadata_credit
 from sigharvest.datasources import datasource_key, rule_datasources
 from sigharvest.identity import normalise_rule_id, placeholder_uuid
-from sigharvest.models import LogicGroup, Occurrence, RuleVersion, Source, TestResult
+from sigharvest.models import LogicGroup, Occurrence, RuleVersion, Source, TestResult, TestRun
 
 # The index only needs text (titles, field names, values for full-text search and quality flags), so scalars are
 # not type-resolved: BaseLoader keeps every scalar a string and is several times faster on 110k documents.
@@ -277,6 +277,22 @@ def canonical_version_ids(s: Session) -> set[int]:
     return {key[4] for key in best.values()}
 
 
+def current_validation_toolchain(s: Session) -> str | None:
+    """Validation toolchain of the newest validate run (None before the first run that recorded one).
+
+    A run records its toolchain before it validates anything, so after a pySigma/schema upgrade the newest run already
+    names the new toolchain even when it was interrupted; results from the old toolchain then index as "not tested".
+    """
+    params = s.scalars(select(TestRun.params).where(TestRun.stage == "validate").order_by(TestRun.id.desc()).limit(1)).first()
+    tc = (params or {}).get("toolchain")
+    return tc if isinstance(tc, str) and tc else None
+
+
+def validation_current(result_toolchain: str | None, current: str | None) -> bool:
+    """A stored validation counts only under the current toolchain; results without one predate fingerprints (kept)."""
+    return current is None or not result_toolchain or result_toolchain == current
+
+
 def rebuild(s: Session, progress: Callable[[str], None] | None = None, *, commit: bool = True, full: bool = True, workers: int | None = None) -> int:
     """Rebuild the whole derived index (logic groups, families, near duplicates, overlap, FTS) in one transaction.
 
@@ -349,9 +365,10 @@ def rebuild(s: Session, progress: Callable[[str], None] | None = None, *, commit
     canonical_rows = [{"id": vid} for vid in canonical]
     for i in range(0, len(canonical_rows), 5000):
         s.execute(text("INSERT INTO index_canonical VALUES (:id)"), canonical_rows[i : i + 5000])
+    validate_toolchain = current_validation_toolchain(s)
     # Restrict before JSON extraction: historical/noncanonical result bodies can
     # dwarf the live canonical set on long-lived workspaces.
-    for vid, stage, target, status, covered, source_statuses in s.execute(
+    for vid, stage, target, status, covered, source_statuses, tc in s.execute(
         select(
             TestResult.version_id,
             TestResult.stage,
@@ -359,6 +376,7 @@ def rebuild(s: Session, progress: Callable[[str], None] | None = None, *, commit
             TestResult.status,
             TestResult.detail["covered_sources"],
             TestResult.detail["source_statuses"],
+            func.json_extract(TestResult.detail, "$.toolchain"),
         ).where(
             TestResult.stage.in_(["validate", "convert"]),
             TestResult.dataset == "",
@@ -368,6 +386,8 @@ def rebuild(s: Session, progress: Callable[[str], None] | None = None, *, commit
         if vid not in canonical:
             continue
         if stage == "validate":
+            if not validation_current(tc, validate_toolchain):
+                continue  # checked by an older parser/schema: "not tested" until validated again, never a stale "ok"
             validation[vid] = status
         else:
             conversion[vid][target] = {
