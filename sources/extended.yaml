@@ -198,15 +198,6 @@ sources:
   priority: 50
   tier: extended
   notes: '~995 valid rules, 973 unique; github stars=0 pushed=2025-02-03; no licence: index metadata/links only, do not redistribute rule content'
-- name: threatclaw__threatclaw
-  url: https://github.com/threatclaw/threatclaw.git
-  paths:
-  - rules/imported/**
-  licence: AGPL-3.0-only
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: '~984 valid rules, 982 unique; github stars=4 pushed=2026-09-01; AGPL-3.0: copyleft/share-alike, keep licence + attribution with redistributed rules'
 - name: high101bro__posh-easywin
   url: https://github.com/high101bro/PoSh-EasyWin.git
   paths:
