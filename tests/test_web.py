@@ -481,3 +481,34 @@ def test_a_number_beyond_sqlite_integers_is_a_400_not_a_500(client: TestClient, 
     """Found crawling the UI with hostile URLs: SQLite's OverflowError on a 20-digit number reached the user as a 500."""
     r = client.get(path)
     assert r.status_code == 400 and "out of range" in r.text, (r.status_code, r.text[:200])
+
+
+def test_overview_headline_counts_the_rules_search_shows(tmp_path: Path) -> None:
+    """The big number links to search, so it leaves junk out like search does; the junk count stays one click away."""
+    rules = tmp_path / "rules"
+    rules.mkdir()
+    (rules / "mimikatz.yml").write_text(MIMIKATZ)
+    (rules / "certutil.yml").write_text(CERTUTIL)
+    marker = (
+        CERTUTIL.replace("Certutil Download", "Simulator Marker")
+        .replace("0f3e2a1b-1111", "0f3e2a1b-2222")
+        .replace("  category: process_creation\n  product: windows\n", "  category: test\n")
+        .replace("urlcache", "marker-42")
+    )
+    (rules / "marker.yml").write_text(marker)  # a placeholder log source: junk
+    ws = Workspace(tmp_path / "ws")
+    ws.root.mkdir()
+    save_sources(ws, [SourceConfig(name="local-rules", type="local", url=str(rules), licence="MIT", redistributable=True)])
+    sessions = open_db(ws, migrate=True)
+    sync_all(ws, workers=1)
+    from sigharvest.index import rebuild
+    from sigharvest.lock import mutation_lease
+    from sigharvest.web.app import create_app
+
+    with mutation_lease(ws), sessions() as s:
+        assert rebuild(s, workers=1) == 3
+    with TestClient(create_app(ws, sessions), base_url="http://127.0.0.1") as c:
+        page = c.get("/", headers=HTML).text
+    assert re.search(r'class="yield-n" href="/search">2</a>', page), page
+    assert '<a href="/search?junk=1">1 more</a> set aside as junk.' in page
+    assert "1 source &middot; 2 rules" in page

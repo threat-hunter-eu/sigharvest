@@ -19,8 +19,8 @@
 <section class="yield" aria-label="Your index at a glance">
   <div class="yield-lead">
     <p class="yield-l">Unique rules</p>
-    <a class="yield-n" href="/search">{{ c.logic|num }}</a>
-    <p class="yield-d">One entry per detection logic, from {{ c.documents|num }} rule files.{% if recent.counts.new and not recent.first %} <span class="up">+{{ recent.counts.new|num }}</span> in the last update.{% endif %}</p>
+    <a class="yield-n" href="/search">{{ (c.logic - c.junk)|num }}</a>
+    <p class="yield-d">One entry per detection logic, from {{ c.documents|num }} rule files.{% if c.junk %} <a href="/search?junk=1">{{ c.junk|num }} more</a> set aside as junk.{% endif %}{% if recent.counts.new and not recent.first %} <span class="up">+{{ recent.counts.new|num }}</span> in the last update.{% endif %}</p>
     {{ composition(levels, 'By level') }}
     {{ spark(trend, ('unchanged' if not trend.delta else '{:+,}'.format(trend.delta)) ~ ' over the last ' ~ trend.n ~ ' updates') if trend }}
   </div>
