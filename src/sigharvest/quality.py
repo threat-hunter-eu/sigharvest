@@ -15,8 +15,10 @@ Junk flags (hidden from search, export and check by default; `--include-junk` sh
 - negation_only, short_keyword_wildcard, generic_field_wildcard, test_like_low_level: reviewable precision
   heuristics (quality_precision.py);
 - upstream_deprecated: SigmaHQ deprecated this rule id (or moved it to deprecated/), but this copy does not say so.
+- weak_high_severity: a high/critical rule whose condition is satisfied by weak values alone (quality_strength.py).
 
-Informational flags (not hidden): ioc_list (mostly hashes / IPs / domains), converted (machine-converted from
+Informational flags (not hidden): weak_detection and weak_branch (quality_strength.py; they lower the score),
+ioc_list (mostly hashes / IPs / domains), converted (machine-converted from
 another rule format), broad_logsource (only a product, no category or service), unused_selection
 (unreferenced named detection), unused_filter (its filter-like sub-case; quality_unused.py).
 Windows source review flags: nonstandard_logsource (reviewed service alias),
@@ -32,6 +34,7 @@ from typing import Any
 from sigharvest.quality_precision import PRECISION_FLAGS, precision_flags
 from sigharvest.quality_quotes import from_raw as quotes_from_raw
 from sigharvest.quality_quotes import quote_artifacts
+from sigharvest.quality_strength import strength_flags
 from sigharvest.quality_unused import from_raw, unused_selections
 
 JUNK = (
@@ -46,6 +49,7 @@ JUNK = (
             "upstream_deprecated",
             "autogen_template",
             "baseline_query",
+            "weak_high_severity",
             "placeholder_logsource",
         }
     )
@@ -89,7 +93,7 @@ def classify(data: dict[str, Any], paths: list[str], upstream_deprecated: bool =
     """Flags for one rule document (`data` = parsed YAML) found at `paths` (all its copies)."""
     from sigharvest.quality_templates import baseline_query
 
-    flags: set[str] = set(precision_flags(data))
+    flags: set[str] = set(precision_flags(data)) | set(strength_flags(data))
     if baseline_query(str(data.get("title") or ""), data.get("level"), data.get("status")):
         flags.update(("autogen_template", "baseline_query"))
     quotes = quote_artifacts(data)
