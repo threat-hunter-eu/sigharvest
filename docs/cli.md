@@ -169,7 +169,10 @@ sigharvest export --profile core --format splunk --out core.spl
 
 Counts differ from SigmaHQ's package because of the search defaults, not the profile: search and export show one
 rule per **family** (`--unit family`: near-identical rules collapse into their best member) and hide junk (test
-fixtures, templates, `negation_only` and similar). To select exactly what the package selects, use
+fixtures, templates, `negation_only`, `weak_high_severity` and similar). A condition that weak values alone can
+satisfy (`Image|startswith: /`, `CommandLine|contains: '-e '`) gets `weak_detection` (every branch) or `weak_branch`
+(one OR branch) and a lower score; on a high or critical rule `weak_detection` also adds the junk flag
+`weak_high_severity`. Find them with `--flag weak_detection`. To select exactly what the package selects, use
 `sigharvest export --profile core --unit logic --include-junk` (on SigmaHQ's own rules this matches SigmaHQ's release
 script). The `sigmahq` preset syncs `rules/` only; `--profile et` and `all` need the
 emerging-threats folder, which the `curated` preset includes.
