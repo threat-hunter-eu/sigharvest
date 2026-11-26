@@ -9,11 +9,46 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ## [Unreleased]
 
+### Added
+
+- New quality flags for rules whose values say almost nothing about an attack (`Image|startswith: /`,
+  `CommandLine|contains: '-e '`, a near-empty regex, a /8 or wider CIDR, `exists` on a catch-all field):
+  `weak_detection` (every path through the condition is weak, score -15), `weak_branch` (at least one OR branch is
+  weak, score -5) and `weak_high_severity` (`weak_detection` on a high or critical rule, junk). Rules flagged
+  `weak_high_severity` leave search, export and check unless `--include-junk` is given.
+- New junk flag `placeholder_logsource` for rules whose log source is only a placeholder (`category: generic`, `test`,
+  `any` and the like, with no product, service or definition, or an unfilled template). No backend can route them, so
+  they would match every event; they are hidden by default like other junk.
+
 ### Changed
 
 - A `# SPDX-License-Identifier:` header in a rule file now counts as the rule's own licence, like its `license:`
   field (the stricter of the two wins). It can only narrow the source licence, never widen it, so a repository that
   relicenses by editing file headers is caught at the next sync.
+- Validation results recorded with an older toolchain (after a pySigma or schema upgrade whose `validate` run did not
+  finish) are indexed as "not tested" instead of keeping their old status. A complete `validate` run restores them.
+- The web UI's overview number and the sidebar rule count now count what search shows (junk set aside); the overview
+  links to the junk separately.
+- The `extended` source list (and its packaged preset): `threatclaw__threatclaw` removed and denylisted (SigmaHQ
+  copies remapped for Wazuh with a false log source); `crates/**` dropped from `timescale__rsigma` (parser test
+  fixtures); `UtshaBasak/Prohori` relicensed to PolyForm Strict 1.0.0 and marked not redistributable (index metadata
+  and links only).
+- pySigma 2.1.1, pysigma-backend-splunk 3.0.1 and pysigma-backend-sqlite 2.2.0 (were 2.1.0, 3.0.0 and 2.1.1).
+
+### Fixed
+
+- The web UI's token login (`serve --token-env`) had no limit on wrong guesses; an address that sends 20 wrong tokens
+  within a minute now gets 429 until the minute has passed. An IPv6 /64 counts as one address, and an IPv4-mapped IPv6
+  address counts as its IPv4 address. (thanks @elhoim)
+- Credentials written into a source URL (`https://user:token@host/...` or a token in the query string such as
+  `?private_token=...`) were shown by `/sources`, `/sources/<name>` and `/api/sources` and written to a release's
+  `manifest.json` and `ATTRIBUTION.md`; these now show the URL without them. Use `auth` for tokens. (thanks @elhoim)
+- A refused (busy) `init` on a new folder no longer deletes the lock file of the `init` that holds it, which let a
+  third writer take the workspace lock at the same time. (thanks @elhoim)
+- A source whose rules ship under more than one licence (a rule's own `license:` narrower than its source's) got the
+  notice and licence text of only one of them in export and release bundles; the top-level `LICENSES.zip` of a release
+  also kept only the copyleft pack's licence for such a source. Every licence now travels with its text, whether it is
+  an SPDX id or the free text of a rule's `license:`. (thanks @elhoim)
 
 ## [0.1.1] - 2026-11-23
 
@@ -35,18 +70,6 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
-- The web UI's token login (`serve --token-env`) had no limit on wrong guesses; an address that sends 20 wrong tokens
-  within a minute now gets 429 until the minute has passed. An IPv6 /64 counts as one address, and an IPv4-mapped IPv6
-  address counts as its IPv4 address. (thanks @elhoim)
-- Credentials written into a source URL (`https://user:token@host/...` or a token in the query string such as
-  `?private_token=...`) were shown by `/sources`, `/sources/<name>` and `/api/sources` and written to a release's
-  `manifest.json` and `ATTRIBUTION.md`; these now show the URL without them. Use `auth` for tokens. (thanks @elhoim)
-- A refused (busy) `init` on a new folder no longer deletes the lock file of the `init` that holds it, which let a
-  third writer take the workspace lock at the same time. (thanks @elhoim)
-- A source whose rules ship under more than one licence (a rule's own `license:` narrower than its source's) got the
-  notice and licence text of only one of them in export and release bundles; the top-level `LICENSES.zip` of a release
-  also kept only the copyleft pack's licence for such a source. Every licence now travels with its text, whether it is
-  an SPDX id or the free text of a rule's `license:`. (thanks @elhoim)
 - The web UI no longer freezes every request while `POST /export/download` builds its file (it now runs in a worker
   thread). (thanks @elhoim)
 - An on-demand conversion slot whose idle worker died is restarted instead of failing every second conversion until
