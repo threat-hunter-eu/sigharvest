@@ -213,6 +213,40 @@ def for_credits_once(ws, credits):  # type: ignore[no-untyped-def]
         return for_credits(s, credits)
 
 
+def test_a_free_text_licence_next_to_an_spdx_id_is_reduced_to_its_id() -> None:
+    """A rule's own `license:` text ("CC BY-SA 4.0") is only recognised as a whole, so it must not be joined raw."""
+    from sigharvest.licence_texts import licence_ids, missing_texts, shipped_licences
+
+    credits = [{"source": "acme", "licence": "MIT"}, {"source": "acme", "licence": "CC BY-SA 4.0"}]
+    shipped = shipped_licences(credits)
+    assert shipped == shipped_licences(credits[::-1])
+    assert licence_ids(shipped["acme"]) == ["CC-BY-SA-4.0", "MIT"]
+    assert missing_texts(None, shipped) == []
+
+
+def test_a_licence_expression_is_parenthesised_when_joined_with_another() -> None:
+    from sigharvest.licence_texts import licence_ids, shipped_licences
+
+    shipped = shipped_licences([{"source": "acme", "licence": "MIT OR Apache-2.0"}, {"source": "acme", "licence": "GPL-3.0-only"}])
+    assert shipped["acme"] == "(MIT OR Apache-2.0) AND GPL-3.0-only"
+    assert licence_ids(shipped["acme"]) == ["MIT", "Apache-2.0", "GPL-3.0-only"]
+
+
+def test_a_source_with_one_licence_keeps_it_as_stated() -> None:
+    from sigharvest.licence_texts import shipped_licences
+
+    for stated in ("MIT", "CC BY-SA 4.0", "MIT OR Apache-2.0"):
+        assert shipped_licences([{"source": "acme", "licence": stated}, {"source": "acme", "licence": stated}]) == {"acme": stated}
+
+
+def test_free_text_licence_ships_its_text_with_an_spdx_one(ws) -> None:  # type: ignore[no-untyped-def]
+    credits = [{"source": "local", "licence": "MIT"}, {"source": "local", "licence": "CC BY-SA 4.0"}]
+    notice, files = for_credits_once(ws, credits)
+    names = {name for name, _ in files}
+    assert {"LICENSES/MIT.txt", "LICENSES/CC-BY-SA-4.0.txt"} <= names
+    assert "CC-BY-SA-4.0" in notice
+
+
 def test_licences_zip_keeps_the_licences_of_both_zips(tmp_path: Path) -> None:
     """The top-level LICENSES.zip covers both packs: the copyleft pack must not replace the permissive licence of a source."""
     builder = release._Extras.__new__(release._Extras)
@@ -250,3 +284,11 @@ def test_every_redistributable_catalogue_licence_has_a_bundled_text() -> None:
             if lic != "null" and licence_class(lic) in ("permissive", "copyleft"):
                 missing |= {i for i in licence_texts.licence_ids(lic) if licence_texts.text(i) is None}
     assert not missing, sorted(missing)
+
+
+@pytest.mark.parametrize("expression", ["x\\1", "MIT OR a\\q", "a\\n"])
+def test_linked_inserts_rule_licence_ids_literally(expression):
+    # A rule's `license:` is third-party text: a backslash in it must not be read as a re.sub template.
+    out = licence_texts.linked(expression)
+    for i in licence_texts.spdx_ids(expression):
+        assert f"[{i}](" in out

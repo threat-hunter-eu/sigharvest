@@ -206,7 +206,10 @@ def linked(expression: str | None) -> str:
     for i in spdx_ids(expression):
         url = link(i)
         if url:
-            out = re.sub(rf"(?<![\w.-]){re.escape(i)}(?![\w.-])", f"[{i}]({url})", out, count=1)
+            # Backslashes doubled so the id and url go in literally: rule `license:` values are third-party text,
+            # and re.sub would read a backslash in them as a template escape (or raise re.error).
+            md = f"[{i}]({url})".replace("\\", "\\\\")
+            out = re.sub(rf"(?<![\w.-]){re.escape(i)}(?![\w.-])", md, out, count=1)
     return out
 
 
@@ -314,13 +317,26 @@ def shipped_licences(credits: list[dict[str, Any]]) -> dict[str, str | None]:
 
     Credits are one entry per rule and a rule may carry a narrower licence than its source (export.effective_licence),
     so one source can ship under several: they are all listed (joined with AND, sorted), none is dropped, so every
-    licence text and notice travels with the rules."""
+    licence text and notice travels with the rules.
+
+    A narrower licence can be free text ("CC BY-SA 4.0") that `licence_ids` knows only as a whole, so each licence
+    is reduced to its id before joining, and a licence that is itself an expression is parenthesised. A source with a
+    single licence keeps it exactly as stated."""
     found: dict[str, set[str]] = {}
     for c in credits:
         found.setdefault(str(c.get("source")), set())
         if c.get("licence"):
             found[str(c.get("source"))].add(str(c["licence"]))
-    shipped: dict[str, str | None] = {name: " AND ".join(sorted(ids)) or None for name, ids in found.items()}
+
+    def term(licence: str) -> str:
+        ids = licence_ids(licence)
+        if len(ids) == 1:
+            return ids[0]
+        return f"({licence})" if ids else licence
+
+    shipped: dict[str, str | None] = {
+        name: (next(iter(lics)) if len(lics) == 1 else " AND ".join(sorted({term(lic) for lic in lics}))) or None for name, lics in found.items()
+    }
     if any(c.get("drl_origin") for c in credits):
         shipped["rules derived from DRL rules"] = "DRL-1.1"
     return shipped

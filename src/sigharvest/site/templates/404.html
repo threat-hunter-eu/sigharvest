@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Page not found{% endblock %}
+{% block description %}This page is not on the sigharvest rules site.{% endblock %}
+{% block robots %}<meta name="robots" content="noindex">{% endblock %}
+{% block main %}
+<p class="eyebrow">404</p>
+<h1>Page not found</h1>
+<p class="lead">This address is not on the rules site. Rules that drop out of the top-ranked pages, or change upstream, keep their search entry: search for the rule by its title or ATT&amp;CK id.</p>
+<p><a class="btn btn-primary" href="{{ base }}">search the rules</a> <a class="btn" href="{{ base }}attribution.html">attribution and licences</a></p>
+{% endblock %}

@@ -338,7 +338,9 @@ def test_control_characters_never_reach_the_terminal(tmp_path: Path) -> None:
     commit(repo, "evil")
     assert update(ws)[0] == 0
     with open_db(ws, migrate=True)() as s:
-        assert s.scalars(select(LogicGroup.title).where(LogicGroup.title.startswith("Rule 5"))).one().count("\x1b") == 5
+        # ingest already replaces the 5 ESC characters of the title with U+FFFD before storing it
+        stored = s.scalars(select(LogicGroup.title).where(LogicGroup.title.startswith("Rule 5"))).one()
+        assert "\x1b" not in stored and stored.count("�") == 5
     run = latest(ws)
     md, data = report(ws, run)
     raw_json = (ws.root / run.report).with_suffix(".json").read_text()  # type: ignore[operator]
@@ -351,6 +353,17 @@ def test_control_characters_never_reach_the_terminal(tmp_path: Path) -> None:
     (ws.root / run.report).write_text(f"# old {EVIL}\n")  # type: ignore[operator]
     shown = CliRunner().invoke(app, ["runs", "show", "latest"], env={"SIGHARVEST_HOME": str(ws.root)})
     assert "\x1b" not in shown.output and "http://evil" in shown.output
+
+
+def test_bare_runs_lists_the_table_not_json(tmp_path: Path) -> None:
+    ws = Workspace(tmp_path)
+    save_sources(ws, [])
+    open_db(ws, migrate=True)
+    env = {"SIGHARVEST_HOME": str(ws.root)}
+    bare = CliRunner().invoke(app, ["runs"], env=env)
+    listed = CliRunner().invoke(app, ["runs", "list"], env=env)
+    assert bare.exit_code == 0 and "no update runs yet" in bare.output
+    assert bare.output == listed.output
 
 
 def test_clean_text() -> None:

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,7 +22,7 @@ class _Logic:
     copies: int = 0
     sources: set[str] = field(default_factory=set)
     rule_ids: set[str] = field(default_factory=set)
-    order: tuple[int, datetime, str, str] | None = None
+    order: tuple[int, str, str, str] | None = None
     canonical: dict[str, str | None] = field(default_factory=dict)
 
 
@@ -46,7 +45,6 @@ def compute(s: Session, top: int) -> DedupeReport:
             Source.name,
             Source.priority,
             Occurrence.path,
-            Occurrence.first_seen,
         )
         .join(Occurrence, Occurrence.version_id == RuleVersion.id)
         .join(Source, Source.id == Occurrence.source_id)
@@ -57,7 +55,7 @@ def compute(s: Session, top: int) -> DedupeReport:
     contents: Counter[str] = Counter()
     titles: dict[str, set[str]] = defaultdict(set)
     rep = DedupeReport()
-    for rid, logic, content, title, slug, source, priority, path, first_seen in s.execute(query.execution_options(yield_per=2000)):
+    for rid, logic, content, title, slug, source, priority, path in s.execute(query.execution_options(yield_per=2000)):
         rep.live_documents += 1
         contents[content] += 1
         group = logics.get(logic)
@@ -66,7 +64,7 @@ def compute(s: Session, top: int) -> DedupeReport:
         group.copies += 1
         group.sources.add(source)
         group.rule_ids.add(rid)
-        order = (priority, first_seen, source, path)
+        order = (priority, source, content, path)  # query.dedupe's sort key
         if group.order is None or order < group.order:
             group.order = order
             group.canonical = {"source": source, "path": path, "rule_id": rid, "title": title}

@@ -21,6 +21,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from sigharvest.conversion import BACKENDS
+from sigharvest.export_zip import safe_stem
 from sigharvest.models import LogicGroup
 from sigharvest.web.export_bundle import check_output_size, check_selection_size
 
@@ -29,10 +30,6 @@ LICENCE_MODES = ("split", "permissive", "all")  # split by class (default), perm
 LAYOUTS = ("logsource", "source", "flat")
 STAMP = (1980, 1, 1, 0, 0, 0)
 LIMIT = 64 * 1024**2
-
-
-def safe_stem(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]", "_", name)[:80] or "rules"
 
 
 def _included(cls: str, mode: str) -> bool:
