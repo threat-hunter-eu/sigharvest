@@ -46,7 +46,7 @@ from sigharvest.licensing import licence_class, redistributable
 from sigharvest.models import LogicGroup, Occurrence, RuleVersion, Source
 from sigharvest.publication import PublicationError, build_time, staged_directory
 from sigharvest.release_reader import file_digest, open_release
-from sigharvest.sources import file_link
+from sigharvest.sources import file_link, public_url
 
 FORMAT = 1
 
@@ -178,7 +178,7 @@ def _build(
     for r in sorted(sources.values(), key=lambda r: r.name):
         if not per_source.get(r.name):
             continue
-        row: dict[str, Any] = {"name": r.name, "type": r.type, "url": r.url, "commit": r.last_commit, "licence": lic.get(r.name),
+        row: dict[str, Any] = {"name": r.name, "type": r.type, "url": public_url(r.url), "commit": r.last_commit, "licence": lic.get(r.name),
                                "priority": r.priority, "rules": per_source.get(r.name, 0)}  # fmt: skip
         cfg = configs.get(r.name)
         if cfg is not None:
@@ -397,11 +397,10 @@ class _Extras:
 
     @staticmethod
     def _shipped(credits: list[dict[str, Any]]) -> dict[str, str | None]:
-        """Source -> licence of the rules whose text a zip carries (DRL added when DRL-derived rules are in it)."""
-        shipped: dict[str, str | None] = {str(c["source"]): c["licence"] for c in credits}
-        if any(c.get("drl_origin") for c in credits):
-            shipped["rules derived from DRL rules"] = "DRL-1.1"
-        return shipped
+        """Source -> licences of the rules whose text a zip carries (DRL added when DRL-derived rules are in it)."""
+        from sigharvest.licence_texts import shipped_licences
+
+        return shipped_licences(credits)
 
     def licences_zip(self) -> None:
         """LICENSES.zip at the top of the release: the LICENSES/ folder of both zips together (release assets are flat)."""
@@ -409,9 +408,8 @@ class _Extras:
 
         from sigharvest.licence_texts import bundle
 
-        shipped: dict[str, str | None] = {}
-        for credits in self.credits.values():
-            shipped |= self._shipped(credits)
+        # One pass over both zips' credits: merging per-zip dicts would let the copyleft zip's licence replace the permissive one's.
+        shipped = self._shipped([c for credits in self.credits.values() for c in credits])
         with zipfile.ZipFile(self.out / "LICENSES.zip", "w", compression=zipfile.ZIP_DEFLATED) as zf:
             for name, data in bundle(self.ws, shipped, self.configs):
                 zf.writestr(zipfile.ZipInfo(name, ZIP_STAMP), data, compress_type=zipfile.ZIP_DEFLATED)

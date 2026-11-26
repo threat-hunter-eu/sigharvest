@@ -107,6 +107,15 @@ jobs:
       # Disk admission (docs/automation.md#disk-space): each fetch is admitted against the space free when it starts;
       # the reserve keeps room for validation, index, release staging and the cache archive. GIT_CACHE=drop: a clone
       # is deleted once its source is ingested (it is not cached anyway).
+      # The index (ATT&CK score credit) and `release build` (rules.jsonl `attack`: current id, tactics, status) read
+      # the pinned ATT&CK catalog from data/cache/attack only if it is already there; nothing else in this job fetches
+      # it, so without this step every technique was published as `unverified` with no tactics. Fetched once, then
+      # kept with the workspace cache. A failed download does not stop the night: the release is built as before.
+      - name: ATT&CK catalog
+        run: |
+          uv run --no-sync python -c 'from sigharvest.attack import load_matrix; from sigharvest.config import find_workspace; m = load_matrix(find_workspace()); print(f"ATT&CK {m.version}: {len(m.techniques)} techniques")' \
+            || echo "::warning::ATT&CK catalog unavailable: techniques are published as unverified, without tactics"
+
       - name: Update (fetch, ingest, validate, convert, index)
         id: update
         timeout-minutes: 270
