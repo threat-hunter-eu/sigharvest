@@ -273,6 +273,11 @@ def live_rules(s: Session) -> int:
     return int(s.scalar(select(func.count()).select_from(LogicGroup)) or 0)
 
 
+def shown_rules(s: Session) -> int:
+    """Rules search shows by default: junk (test fixtures, placeholders, broken logic) is set aside."""
+    return int(s.scalar(select(func.count()).select_from(LogicGroup).where(LogicGroup.junk.is_(False))) or 0)
+
+
 # ----------------------------------------------------------------------------- the sidebar status line
 
 
@@ -294,7 +299,7 @@ def sidebar(ws_root: Path, s: Session) -> dict[str, Any]:
     return {
         "incomplete": incomplete_text(partial) if partial is not None else "",
         "empty": n_rules == 0,
-        "n_rules": n_rules,
+        "n_rules": shown_rules(s) if n_rules else 0,
         "n_sources": enabled,
         "last_sync": (last[0].finished_at if last else None) or s.scalar(select(func.max(Source.last_sync_at))),
         "failing": failing,
