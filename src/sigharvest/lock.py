@@ -112,20 +112,38 @@ class UpdateLock:
     def acquire(self) -> None:
         if os.name != "posix":
             raise LockHeld(f"the workspace lock needs POSIX flock on a local filesystem. Windows is supported through WSL: {WSL_DOCS}")
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(self.path, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0), 0o600)
         deadline = time.monotonic() + max(self.timeout, PROBE_GRACE)
-        try:
-            while not _try_lock(fd):
+        while True:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                fd = os.open(self.path, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0), 0o600)
+            except FileNotFoundError:
                 if time.monotonic() >= deadline:
-                    raise LockHeld(f"workspace is busy ({_read_holder(self.path)}); retry when it finishes. Lock file: {self.path}")
-                time.sleep(0.05)
-        except BaseException:
-            os.close(fd)
-            raise
+                    raise LockHeld(f"workspace is busy (its folder keeps being removed); retry when it finishes. Lock file: {self.path}") from None
+                continue  # a failed command removed the folder it created between mkdir and open
+            try:
+                while not _try_lock(fd):
+                    if time.monotonic() >= deadline:
+                        raise LockHeld(f"workspace is busy ({_read_holder(self.path)}); retry when it finishes. Lock file: {self.path}")
+                    time.sleep(0.05)
+                if self._is_current(fd):
+                    break
+            except BaseException:
+                os.close(fd)
+                raise
+            os.close(fd)  # locked a file its holder unlinked while we waited: lock the one at the path now
         self.fd, self.pid = fd, os.getpid()
         _ACTIVE_FDS.add(fd)
         self._write()
+
+    def _is_current(self, fd: int) -> bool:
+        """The locked descriptor is still the file at the path (a failed `init` removes the lock file it created)."""
+        try:
+            at_path = os.lstat(self.path)
+        except FileNotFoundError:
+            return False
+        locked = os.fstat(fd)
+        return (locked.st_dev, locked.st_ino) == (at_path.st_dev, at_path.st_ino)
 
     def _write(self) -> None:
         assert self.fd is not None

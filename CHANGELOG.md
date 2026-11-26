@@ -29,6 +29,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- A refused (busy) `init` on a new folder no longer deletes the lock file of the `init` that holds it, which let a
+  third writer take the workspace lock at the same time. (thanks @elhoim)
 - A source whose rules ship under more than one licence (a rule's own `license:` narrower than its source's) got the
   notice and licence text of only one of them in export and release bundles; the top-level `LICENSES.zip` of a release
   also kept only the copyleft pack's licence for such a source. Every licence now travels with its text, whether it is
