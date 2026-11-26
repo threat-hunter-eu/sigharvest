@@ -29,6 +29,9 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- Credentials written into a source URL (`https://user:token@host/...` or a token in the query string such as
+  `?private_token=...`) were shown by `/sources`, `/sources/<name>` and `/api/sources` and written to a release's
+  `manifest.json` and `ATTRIBUTION.md`; these now show the URL without them. Use `auth` for tokens. (thanks @elhoim)
 - A refused (busy) `init` on a new folder no longer deletes the lock file of the `init` that holds it, which let a
   third writer take the workspace lock at the same time. (thanks @elhoim)
 - A source whose rules ship under more than one licence (a rule's own `license:` narrower than its source's) got the

@@ -115,6 +115,11 @@ export ACME_TOKEN=...            # read-only token
 sigharvest sources add acme-private https://github.com/acme/private-rules.git --auth ACME_TOKEN
 ```
 
+Do not put a token in the URL itself (`user:token@` or a query parameter such as `?private_token=...`): the web UI,
+the API and releases show source URLs without their credentials and with the value of every query or fragment
+parameter whose name contains `token`, `key`, `secret`, `pass`, `pwd`, `auth`, `sig`, `credential` or `session`
+replaced by `REDACTED`, but sources.yaml and the database keep the URL as written.
+
 A **local folder** (your own detections, work in progress, an export you are allowed to use):
 
 <!-- doctest -->
