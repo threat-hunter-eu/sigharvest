@@ -5,7 +5,8 @@ or `SIGHARVEST_HOME`). On `127.0.0.1` it has no login. Any other address needs `
 environment variable holding a token of 16+ characters: browsers ask for a user name (any) and the token as password,
 scripts send `Authorization: Bearer <token>`; without it `serve` refuses to start. An address that sends 20 wrong tokens
 within a minute is refused (HTTP 429, `Retry-After`) until the minute has passed, even with the right token; behind
-a reverse proxy all clients share the proxy's address, so they share that budget too. With `--host 0.0.0.0`, also name
+a reverse proxy all clients share the proxy's address, so they share that budget too. An IPv6 /64 counts as one
+address, and an IPv4-mapped IPv6 address counts as its IPv4 address. With `--host 0.0.0.0`, also name
 the host names clients use with `--allow-host NAME` (the UI refuses other `Host` headers). `--port` changes the
 port. `sigharvest web` is a hidden alias of `serve`.
 

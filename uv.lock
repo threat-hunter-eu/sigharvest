@@ -1402,7 +1402,7 @@ wheels = [
 
 [[package]]
 name = "pysigma"
-version = "2.1.0"
+version = "2.1.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -1419,9 +1419,9 @@ dependencies = [
     { name = "requests", marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
     { name = "types-pyyaml", marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/1e/4d5d0bac0fba32895222f0d01217629b0057e983f3ebd2bd3b9eeb6a8ae9/pysigma-2.1.0.tar.gz", hash = "sha256:b800923786ace5bc90bd35f488d81b7a2b86e04856f213f5de52c05f876901d1", size = 163103, upload-time = "2026-11-09T23:19:13.516Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/40/5b5dae9d84244662e0cf7b6336cd9b4d60113efab73865f32e4dbff1a102/pysigma-2.1.1.tar.gz", hash = "sha256:12226cb5c42aee8d60341a8b7d41a75cdae42ee671f9f9595aa61f1f48c71dfa", size = 164706, upload-time = "2026-11-22T09:15:42.343Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/c6/b7cde993ae35ecbd5d36d2d7a94637cdd070332fb74ff8b308772633ab73/pysigma-2.1.0-py3-none-any.whl", hash = "sha256:3495dcfff8aaefc81f9249a6ebdb3ef823ca84bfa32fa0a8f0ef0421049cced4", size = 197899, upload-time = "2026-11-09T23:19:11.675Z" },
+    { url = "https://files.pythonhosted.org/packages/15/56/5fce8e506763d16735076eade75bdf689a64f20f0055598d7dffbb56cdf5/pysigma-2.1.1-py3-none-any.whl", hash = "sha256:468daab4d18699d49128a49983006d6bfed62ca2d53f8d6dd6052e7d82633ba8", size = 199633, upload-time = "2026-11-22T09:15:40.657Z" },
 ]
 
 [[package]]
@@ -1474,7 +1474,7 @@ resolution-markers = [
     "python_full_version < '3.15'",
 ]
 dependencies = [
-    { name = "pysigma", version = "2.1.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "pysigma", version = "2.1.1", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/55/2d/c7e17329fac2d580da65689ebd0a66d026fef589081e01c1014e8b5720a8/pysigma_backend_loki-0.16.0.tar.gz", hash = "sha256:ad6390e8fc28077614ab60fdcebb9c5fa5f555b8b7ada91e8b943e47c941485b", size = 27882, upload-time = "2026-10-28T14:17:49.309Z" }
 wheels = [
@@ -1512,18 +1512,18 @@ wheels = [
 
 [[package]]
 name = "pysigma-backend-splunk"
-version = "3.0.0"
+version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15'",
     "python_full_version < '3.15'",
 ]
 dependencies = [
-    { name = "pysigma", version = "2.1.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "pysigma", version = "2.1.1", source = { registry = "https://pypi.org/simple" } },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/ca/d85f4f51e4151d63e9c0c5c9c025592b0c54afc27b082a2c1956fa427e60/pysigma_backend_splunk-3.0.0.tar.gz", hash = "sha256:c424ea43195614caa99dbb1b7c08ca413c49b5246ac01adf8a6bb55fd2d1b8b7", size = 22408, upload-time = "2026-10-28T09:14:19.03Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/c3/ba13d06eef24583b36a2dc39c4fb642251c8cef456dd69ee1d47931156c9/pysigma_backend_splunk-3.0.1.tar.gz", hash = "sha256:bd920634c43f67124445a207f8a804c13cc71d7cd4fd1d2ddb6313d4f974b613", size = 24172, upload-time = "2026-11-15T13:59:33.525Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/d2/f05199319ccb630cc9e073f700029b02332bda2af0b5a27223bbdd83a7ea/pysigma_backend_splunk-3.0.0-py3-none-any.whl", hash = "sha256:56fe1614ba38a6991fbe02e9dff6f27704fa84b90951e5c86ef2a6ab475a5bff", size = 24043, upload-time = "2026-10-28T09:14:17.853Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/1a/fd16b60fa5905ed2d544f005e7c7119b76075d29fe5e9b6b67dd15540089/pysigma_backend_splunk-3.0.1-py3-none-any.whl", hash = "sha256:cb983c86c409227d25b3c39f4420b0508f630db012071fff0920a999cce92a05", size = 25944, upload-time = "2026-11-15T13:59:32.218Z" },
 ]
 
 [[package]]
@@ -1544,18 +1544,18 @@ wheels = [
 
 [[package]]
 name = "pysigma-backend-sqlite"
-version = "2.1.1"
+version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15'",
     "python_full_version < '3.15'",
 ]
 dependencies = [
-    { name = "pysigma", version = "2.1.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "pysigma", version = "2.1.1", source = { registry = "https://pypi.org/simple" } },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/38/46/5bea3a7e1004c3d9b7d94ff131311687b79adc6beb0db39926729872ca84/pysigma_backend_sqlite-2.1.1.tar.gz", hash = "sha256:df500e04a1589b8604436bdb0106d4b89a7ab31159b59789be9435fdd255a35f", size = 28780, upload-time = "2026-10-18T07:22:29.631Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/65/65667830d0dddcf23a663e4ac0820f8fb169d13e0026b9934f5992dd4fdc/pysigma_backend_sqlite-2.2.0.tar.gz", hash = "sha256:2dd15374726dd1abcd654615535c9c621abfa929c9575faf8af8a8de8c5150a5", size = 47065, upload-time = "2026-11-22T14:17:12.982Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/23/297112ac22dd2792139fe33d84783e0a2d4feb89b6db49c9b0341c03b5d5/pysigma_backend_sqlite-2.1.1-py3-none-any.whl", hash = "sha256:1fe1941943dcc9ed14a66836b1ed96b1456ad750df84dedb9136a1db979ab967", size = 28616, upload-time = "2026-10-18T07:22:27.971Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/0e/c848ce70af489a0758ff726d5903c61ec947211e3aadca8b899a9353eb3d/pysigma_backend_sqlite-2.2.0-py3-none-any.whl", hash = "sha256:85faba474baef9cd8e8db8304bbce1e85f49c4a848a99c12847a2cf1bd52fdf9", size = 46791, upload-time = "2026-11-22T14:17:11.939Z" },
 ]
 
 [[package]]
@@ -1583,7 +1583,7 @@ resolution-markers = [
     "python_full_version < '3.15'",
 ]
 dependencies = [
-    { name = "pysigma", version = "2.1.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
+    { name = "pysigma", version = "2.1.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/58/7e/d7f926cd566642a92ec92b30fbd914298384a05048be86fab1bcfb8403c0/pysigma_pipeline_sysmon-3.0.0.tar.gz", hash = "sha256:5b0706bd7c3054ba68443e6944947b6dceb8c132f7847650b1114ab9788818bd", size = 12047, upload-time = "2026-11-01T15:32:25.929Z" }
 wheels = [
@@ -1615,7 +1615,7 @@ resolution-markers = [
     "python_full_version < '3.15'",
 ]
 dependencies = [
-    { name = "pysigma", version = "2.1.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
+    { name = "pysigma", version = "2.1.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/78/dd/db08ccbd254ec61702456ef790c18b21c325709980d9aae80cecbfbca9ff/pysigma_pipeline_windows-3.0.0.tar.gz", hash = "sha256:73e8f9a11305400bc9cc3d06ded69e2e5a4a6c4e26426e85a55cb8ad1902a132", size = 12058, upload-time = "2026-11-01T15:50:38.599Z" }
 wheels = [
@@ -1918,7 +1918,7 @@ wheels = [
 
 [[package]]
 name = "sigharvest"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
@@ -1929,7 +1929,7 @@ dependencies = [
     { name = "markupsafe" },
     { name = "pyparsing" },
     { name = "pysigma", version = "1.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert-legacy'" },
-    { name = "pysigma", version = "2.1.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
+    { name = "pysigma", version = "2.1.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
     { name = "pysigma-pipeline-sysmon", version = "2.0.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert-legacy'" },
     { name = "pysigma-pipeline-sysmon", version = "3.0.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert' or extra != 'extra-10-sigharvest-convert-legacy'" },
     { name = "pysigma-pipeline-windows", version = "2.0.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-sigharvest-convert-legacy'" },
@@ -1944,10 +1944,10 @@ dependencies = [
 
 [package.optional-dependencies]
 convert = [
-    { name = "pysigma", version = "2.1.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "pysigma", version = "2.1.1", source = { registry = "https://pypi.org/simple" } },
     { name = "pysigma-backend-loki", version = "0.16.0", source = { registry = "https://pypi.org/simple" } },
-    { name = "pysigma-backend-splunk", version = "3.0.0", source = { registry = "https://pypi.org/simple" } },
-    { name = "pysigma-backend-sqlite", version = "2.1.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "pysigma-backend-splunk", version = "3.0.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "pysigma-backend-sqlite", version = "2.2.0", source = { registry = "https://pypi.org/simple" } },
 ]
 convert-legacy = [
     { name = "pysigma", version = "1.5.1", source = { registry = "https://pypi.org/simple" } },

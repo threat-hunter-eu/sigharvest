@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import hmac
+import ipaddress
 import math
 import time
 from collections import deque
@@ -130,6 +131,23 @@ def authorised(header: str, token: str) -> bool:
     return False
 
 
+def peer_key(host: str) -> str:
+    """The throttle's key for a peer address: an IPv6 /64 is one client, an IPv4-mapped address is its IPv4 address.
+
+    Without it a client on an IPv6 bind rotates through its own /64 and never reaches the limit, and `::ffff:10.0.0.9`
+    and `10.0.0.9` count separately.
+    """
+    try:
+        ip = ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        return host
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return str(ip)
+
+
 class TokenAuth:
     """ASGI middleware: every HTTP request needs the token (`sigharvest serve --token-env VAR`), static files included.
 
@@ -173,7 +191,7 @@ class TokenAuth:
             await self.app(scope, receive, send)
             return
         client = scope.get("client")
-        peer = str(client[0]) if client else ""
+        peer = peer_key(str(client[0])) if client else ""
         now = self.clock()
         recent = self._recent(peer, now)
         if len(recent) >= self.MAX_FAILURES:

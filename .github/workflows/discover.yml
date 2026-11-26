@@ -203,7 +203,9 @@ jobs:
           auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
           echo "::add-mask::$auth"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push --force origin "$PR_BRANCH"
-          num=$(gh pr list --head "$PR_BRANCH" --state open --json number --jq '.[0].number // ""')
+          # --head matches the branch name only, so a fork PR from a branch of the same name would match too.
+          num=$(gh pr list --head "$PR_BRANCH" --state open --json number,isCrossRepository \
+            --jq '[.[] | select(.isCrossRepository == false)][0].number // ""')
           if [ -n "$num" ]; then
             gh pr edit "$num" --body-file "$RUNNER_TEMP/body.md"
           else

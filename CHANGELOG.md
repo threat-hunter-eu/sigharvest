@@ -9,48 +9,65 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ## [Unreleased]
 
-### Changed
+## [0.1.1] - 2026-11-23
 
-- README, getting started and the install hints of the CLI and web UI install the PyPI package (`uv tool install "sigharvest[convert]"`); installing from Git stays as the development option.
-- Tidier repository root: CONTRIBUTING, SECURITY and CODE_OF_CONDUCT moved to `.github/`, the systemd units to
-  `docs/deploy/systemd/`, maintainer tooling to `scripts/maintainer/`; a shorter README, with the screenshot tour and
-  How it works in `docs/features.md`.
-- Disk admission for `sync`/`update` charges the fetches that can run at once plus the database growth, then admits
-  each fetch when it starts against the space free at that moment; with `update` a fetch that does not fit is deferred
-  to the next run like one past the time budget. New estimate `SIGHARVEST_DISK_SYNC_DB_SOURCE_BYTES`;
-  `SIGHARVEST_GIT_CACHE=drop` deletes a git clone once its source is ingested. A refusal lists each label once.
-- Nightly: frees runner disk first, runs `update --remote-check`, does not cache the git clones (cache key `v2`).
+### Security
+
+- Hostile upstream rules can no longer stall or exhaust a workspace: scalar text after YAML alias expansion is capped
+  at 2 MiB per document at ingest, and the `template_title` check, report/changes URL scrubbing, the rule-page
+  condition highlighter, the site's licence links and the plain-language condition summary (now capped at 256 tokens
+  or selection references) all run in linear time on long or repeated input. (thanks @elhoim)
+- Terminal control characters (ESC/C0/C1) in upstream tags, descriptions, paths, queries and error messages are
+  printed as U+FFFD by the CLI, and `site build` escapes Rich markup in release errors. (thanks @elhoim)
+- Upstream file paths, titles and error text can no longer inject Markdown into `SKIPPED.md` or run reports.
+  (thanks @elhoim)
+- A `type: http` source with an `auth` token refuses a plain `http://` URL instead of sending the token in cleartext.
+  (thanks @elhoim)
+- Release rule paths starting with exactly `//` are made relative like any other rooted path. (thanks @elhoim)
+- `export --format zip` never names the zip's top folder `..`, and a member whose collision retry name was taken is
+  no longer written twice. (thanks @elhoim)
 
 ### Fixed
 
-- The web UI's token login (`serve --token-env`) had no limit on wrong guesses; an address that sends 20 wrong tokens within a minute now gets 429 until the minute has passed.
-- Static site: its own 404 page (Pages showed GitHub's), keyboard-reachable scrollable rule text, underlined links in running text and no nested landmark on rule pages (axe: 0 serious/critical).
-- `priority: 0` in sources.yaml was rewritten as the default 50 whenever sources.yaml was saved (`sources add/enable/disable`, `discover`).
-- `dedupe --top N` named a different canonical copy than the full report and the index when two sources had the same priority (it ordered by first seen instead of source name and content hash).
-- `sigharvest runs` without a subcommand printed JSON instead of the table `runs list` shows.
-- `search --all-copies` silently ignored `--technique`, `--tactic`, `--validation`, `--backend`, `--min-sources`, `--flag`, `--include-junk`, `--sort` and `--offset`, and always listed deprecated copies. It now refuses the options it cannot apply and hides deprecated copies unless `--include-deprecated` is given.
-- `lint` reported the wrong line for every document after the first when a file started with `---` (and it matched only a bare `---`, not `--- # comment`); lines now come from each document's position in the file.
-- The web UI froze every request while a `POST /export/download` waited for the export slot or built its file: the POST handler ran the whole build on the event loop (the GET handler already used a worker thread).
-- A rule that repeats one large anchored YAML value through many aliases is quarantined at ingest (scalar text after
-  alias expansion is capped at 2 MiB per document); it used to pass the node limit and stall or exhaust memory in
-  the logic hash, `index`, `check` and conversion.
-- The first full-corpus nightly was refused upfront ("disk admission refused"): every source's worst case was charged
-  at once (about 190 GB for 1,201 sources).
-- Validation and conversion admitted result growth for every live rule version (128 KiB each), also when resuming
-  with most of them done; they now charge only the versions still to test, 16 KiB each (measured: about 600 bytes).
-- Terminal escape sequences (ESC/C0/C1 controls) in upstream rule tags, descriptions, file paths, detection keys,
-  converted queries and error messages reached the terminal; the CLI now prints every control character as U+FFFD,
-  and `site build` escapes Rich markup in release errors.
-- The `template_title` check took quadratic time on a title full of unclosed `$(` or `{{`, so one hostile rule could
-  stall `index`, `update` or `lint` for hours; it is now linear, with the same matches.
-- Report and changes text scrubbing no longer backtracks quadratically on a long URL-like token (such as a rule title
-  made of repeated `http://`), which could stall `update` reports, `changes` and site builds.
-- `init --from-release` printed an estimate of hours for the semantic hashes ("about 3h33m left") because their
-  clock started with the download; it now starts with the hashing.
-- An export with `--validation` in a workspace that has no validation results yet (`init --from-release`) only said
-  "no rule matches these filters"; it now says that nothing is validated and to run `sigharvest test --stage validate`.
-- Docs: the `--with-dependencies` example exported the whole corpus and always failed (limit of 100 selected
-  rules); measured `init --from-release` timings for the full nightly pack.
+- The web UI's token login (`serve --token-env`) had no limit on wrong guesses; an address that sends 20 wrong tokens
+  within a minute now gets 429 until the minute has passed. An IPv6 /64 counts as one address, and an IPv4-mapped IPv6
+  address counts as its IPv4 address. (thanks @elhoim)
+- The web UI no longer freezes every request while `POST /export/download` builds its file (it now runs in a worker
+  thread). (thanks @elhoim)
+- An on-demand conversion slot whose idle worker died is restarted instead of failing every second conversion until
+  the server restarts. (thanks @elhoim)
+- `priority: 0` in sources.yaml is kept when the file is saved (it became the default 50). (thanks @elhoim)
+- `dedupe --top N` picks the same canonical copy as the full report and the index. (thanks @elhoim)
+- `search --all-copies` refuses the filters it cannot apply (it silently ignored them) and hides deprecated copies
+  unless `--include-deprecated` is given. (thanks @elhoim)
+- `%` and `_` in the tag, backend and flag search filters (CLI, web UI, API) match literally instead of as wildcards.
+  (thanks @elhoim)
+- `lint` reports the right line numbers in multi-document files. (thanks @elhoim)
+- `sigharvest runs` without a subcommand prints the runs table. (thanks @elhoim)
+- A SIGTERM during the start or the failure recording of `update` marks the run `cancelled` instead of leaving it
+  `running`. (thanks @elhoim)
+- `export --format yaml` keeps both rules when two would get the same file name (one was lost). (thanks @elhoim)
+- Exports no longer abort when a rule's `license:` contains a backslash. (thanks @elhoim)
+- The weekly discovery workflow only updates its own PR, never a fork PR with the same branch name. (thanks @elhoim)
+- Source file links use the GitLab style only for GitLab URLs, not for any URL containing `gitlab.com`.
+- Disk admission: the full-corpus nightly is no longer refused upfront, and validation and conversion charge only the
+  rule versions still to test.
+- `init --from-release` shows a realistic time estimate for the semantic hashes; `export --validation` in a workspace
+  without validation results says what to run instead of "no rule matches these filters".
+- Static site: its own 404 page and accessibility fixes (axe: 0 serious/critical).
+- Docs: a working `--with-dependencies` example and measured `init --from-release` timings.
+
+### Changed
+
+- README, getting started and the CLI and web UI hints install the PyPI package
+  (`uv tool install "sigharvest[convert]"`); installing from Git stays the development option.
+- Disk admission for `sync`/`update` charges only the fetches that can run at once plus the database growth and
+  checks each fetch when it starts; with `update` a fetch that does not fit is deferred to the next run. New settings
+  `SIGHARVEST_DISK_SYNC_DB_SOURCE_BYTES` and `SIGHARVEST_GIT_CACHE=drop` (delete a git clone once ingested).
+- Bundled source catalog: dead and junk-only sources removed (listed with the reason in `sources/denylist.yaml`),
+  moved rule paths fixed, 3 new sources; a source whose upstream licence was removed is now metadata only.
+- Repository layout: CONTRIBUTING, SECURITY and CODE_OF_CONDUCT in `.github/`, systemd units in
+  `docs/deploy/systemd/`, the screenshot tour and How it works in `docs/features.md`.
 
 ## [0.1.0] - 2026-11-17
 
@@ -155,4 +172,5 @@ First public release.
 - A search waits at most 1 s for a search slot (was 10 s, holding a server thread); `/api/search` and `/api/facets`
   refuse cross-site browser requests, like downloads.
 
+[0.1.1]: https://github.com/threat-hunter-eu/sigharvest/releases/tag/v0.1.1
 [0.1.0]: https://github.com/threat-hunter-eu/sigharvest/releases/tag/v0.1.0
