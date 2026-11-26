@@ -131,6 +131,7 @@ Many repositories carry documents that look like Sigma but are not useful rules.
 | upstream_deprecated | SigmaHQ deprecated this rule id, the copy does not say so |
 | template_title | unrendered templates in the title |
 | match_all | every value is a bare wildcard |
+| placeholder_logsource | the log source is only a placeholder (`category: generic` / `test`, an unfilled template): simulator markers, translation stubs |
 
 Informational flags (not hidden): `ioc_list`, `converted`, `broad_logsource`, `unused_selection`,
 `unused_filter` and logsource spelling flags. Filter with `sigharvest search --flag NAME`.

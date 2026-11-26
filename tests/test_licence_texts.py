@@ -190,6 +190,74 @@ def test_copyleft_pack_ships_the_licence_text_without_an_upstream_file(bare_ws, 
     assert not any(n.startswith("LICENSES/local/") for n in names)
 
 
+@pytest.mark.parametrize("order", [1, -1])
+def test_every_licence_of_a_source_ships_with_its_text_and_notice(ws, order: int) -> None:  # type: ignore[no-untyped-def]
+    """Credits are per rule and a rule may be narrower than its source (export.effective_licence): one source, two licences."""
+    from sigharvest.licence_texts import for_credits
+
+    credits = [{"source": "local", "licence": "MIT"}, {"source": "local", "licence": "GPL-3.0-only"}][::order]
+    with open_db(ws)() as s:
+        notice, files = for_credits(s, credits)
+    names = {name for name, _ in files}
+    assert {"LICENSES/MIT.txt", "LICENSES/GPL-3.0-only.txt"} <= names
+    assert "MIT" in notice and "GPL-3.0-only" in notice
+    index = dict(files)["LICENSES/INDEX.md"].decode()
+    assert "MIT" in index and "GPL-3.0-only" in index
+    assert (notice, files) == for_credits_once(ws, credits[::-1])  # the order of the credits does not matter
+
+
+def for_credits_once(ws, credits):  # type: ignore[no-untyped-def]
+    from sigharvest.licence_texts import for_credits
+
+    with open_db(ws)() as s:
+        return for_credits(s, credits)
+
+
+def test_a_free_text_licence_next_to_an_spdx_id_is_reduced_to_its_id() -> None:
+    """A rule's own `license:` text ("CC BY-SA 4.0") is only recognised as a whole, so it must not be joined raw."""
+    from sigharvest.licence_texts import licence_ids, missing_texts, shipped_licences
+
+    credits = [{"source": "acme", "licence": "MIT"}, {"source": "acme", "licence": "CC BY-SA 4.0"}]
+    shipped = shipped_licences(credits)
+    assert shipped == shipped_licences(credits[::-1])
+    assert licence_ids(shipped["acme"]) == ["CC-BY-SA-4.0", "MIT"]
+    assert missing_texts(None, shipped) == []
+
+
+def test_a_licence_expression_is_parenthesised_when_joined_with_another() -> None:
+    from sigharvest.licence_texts import licence_ids, shipped_licences
+
+    shipped = shipped_licences([{"source": "acme", "licence": "MIT OR Apache-2.0"}, {"source": "acme", "licence": "GPL-3.0-only"}])
+    assert shipped["acme"] == "(MIT OR Apache-2.0) AND GPL-3.0-only"
+    assert licence_ids(shipped["acme"]) == ["MIT", "Apache-2.0", "GPL-3.0-only"]
+
+
+def test_a_source_with_one_licence_keeps_it_as_stated() -> None:
+    from sigharvest.licence_texts import shipped_licences
+
+    for stated in ("MIT", "CC BY-SA 4.0", "MIT OR Apache-2.0"):
+        assert shipped_licences([{"source": "acme", "licence": stated}, {"source": "acme", "licence": stated}]) == {"acme": stated}
+
+
+def test_free_text_licence_ships_its_text_with_an_spdx_one(ws) -> None:  # type: ignore[no-untyped-def]
+    credits = [{"source": "local", "licence": "MIT"}, {"source": "local", "licence": "CC BY-SA 4.0"}]
+    notice, files = for_credits_once(ws, credits)
+    names = {name for name, _ in files}
+    assert {"LICENSES/MIT.txt", "LICENSES/CC-BY-SA-4.0.txt"} <= names
+    assert "CC-BY-SA-4.0" in notice
+
+
+def test_licences_zip_keeps_the_licences_of_both_zips(tmp_path: Path) -> None:
+    """The top-level LICENSES.zip covers both packs: the copyleft pack must not replace the permissive licence of a source."""
+    builder = release._Extras.__new__(release._Extras)
+    builder.ws, builder.configs, builder.out = None, {}, tmp_path
+    builder.credits = {"permissive": [{"source": "acme", "licence": "MIT"}], "copyleft": [{"source": "acme", "licence": "GPL-3.0-only"}]}
+    builder.licences_zip()
+    with zipfile.ZipFile(tmp_path / "LICENSES.zip") as zf:
+        names = set(zf.namelist())
+    assert {"LICENSES/MIT.txt", "LICENSES/GPL-3.0-only.txt", "LICENSES/INDEX.md"} <= names
+
+
 def test_release_refuses_a_pack_whose_licence_text_is_not_shipped(bare_ws, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     set_licence(bare_ws, "BSD-3-Clause-Clear")  # permissive (bsd-*), no bundled text, no upstream LICENSE
     with open_db(bare_ws)() as s, pytest.raises(release.PublicationError, match="local: BSD-3-Clause-Clear"):

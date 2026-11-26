@@ -198,15 +198,6 @@ sources:
   priority: 50
   tier: extended
   notes: '~995 valid rules, 973 unique; github stars=0 pushed=2025-02-03; no licence: index metadata/links only, do not redistribute rule content'
-- name: threatclaw__threatclaw
-  url: https://github.com/threatclaw/threatclaw.git
-  paths:
-  - rules/imported/**
-  licence: AGPL-3.0-only
-  redistributable: true
-  priority: 50
-  tier: extended
-  notes: '~984 valid rules, 982 unique; github stars=4 pushed=2026-09-01; AGPL-3.0: copyleft/share-alike, keep licence + attribution with redistributed rules'
 - name: high101bro__posh-easywin
   url: https://github.com/high101bro/PoSh-EasyWin.git
   paths:
@@ -531,14 +522,13 @@ sources:
 - name: timescale__rsigma
   url: https://github.com/timescale/rsigma.git
   paths:
-  - crates/**
   - fuzz/seeds/**
   - scripts/perf/fixtures/**
   licence: MIT
   redistributable: true
   priority: 50
   tier: extended
-  notes: ~201 valid rules, 159 unique; github stars=190 pushed=2026-11-14
+  notes: 'github stars=190 pushed=2026-11-14; crates/** (Rust test fixtures, incl. rules inside .rs files) excluded 2026-11-26'
 - name: zendannyy__sigma-rules
   url: https://github.com/zendannyy/sigma-rules.git
   paths:
@@ -3526,11 +3516,12 @@ sources:
   paths:
   - src/prohori/rules/builtin/**
   - tests/fixtures/rules/valid/**
-  licence: MIT
-  redistributable: true
+  licence: LicenseRef-PolyForm-Strict-1.0.0
+  redistributable: false
   priority: 50
   tier: extended
-  notes: ~15 valid rules, 14 unique; github stars=1 pushed=2026-11-13
+  notes: '~15 valid rules, 14 unique; github stars=1 pushed=2026-11-13; relicensed 2026-11-15 from MIT to PolyForm Strict
+    1.0.0 (LICENSE and SPDX header in every rule file; no redistribution): index metadata/links only'
 - name: z35tyyyy__czsh
   url: https://github.com/Z35Tyyyy/czsh.git
   paths:
