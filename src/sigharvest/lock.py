@@ -119,7 +119,7 @@ class UpdateLock:
                 fd = os.open(self.path, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0), 0o600)
             except FileNotFoundError:
                 if time.monotonic() >= deadline:
-                    raise
+                    raise LockHeld(f"workspace is busy (its folder keeps being removed); retry when it finishes. Lock file: {self.path}") from None
                 continue  # a failed command removed the folder it created between mkdir and open
             try:
                 while not _try_lock(fd):

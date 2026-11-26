@@ -340,6 +340,7 @@ def test_refused_command_keeps_the_lock_file_of_the_holder(tmp_path, monkeypatch
 
     import typer
 
+    import sigharvest.conversion_spills  # noqa: F401  (bind the real mutation_lease before patching)
     import sigharvest.lock as lock
     from sigharvest.cli.common import mutation_command
 

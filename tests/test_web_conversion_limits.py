@@ -3,6 +3,10 @@ through a bounded queue, expensive GETs refuse cross-site requests, and a single
 
 from __future__ import annotations
 
+import os
+import signal
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -36,6 +40,28 @@ def test_a_conversion_over_its_deadline_is_killed_and_the_slot_recovers(monkeypa
     monkeypatch.setattr(ondemand, "DEADLINE", 120.0)
     ok = ondemand.convert(big_rule(3), "splunk")
     assert ok.status == "ok" and ok.queries
+    ondemand.shutdown()
+
+
+def test_a_slot_whose_idle_worker_died_starts_a_fresh_worker() -> None:
+    """An idle worker that dies between conversions (OOM killer, operator) breaks its pool; the next conversion on
+    that slot starts a new worker instead of failing, and no slot keeps the broken pool."""
+    ondemand.shutdown()
+    conversion._on_demand.clear()
+    assert ondemand.convert(big_rule(5), "splunk").status == "ok"
+    pool = ondemand._pool()
+    used = [s for s in list(pool.queue) if s.executor is not None]
+    assert len(used) == 1
+    executor = used[0].executor
+    for pid in list(executor._processes):
+        os.kill(pid, signal.SIGKILL)
+    deadline = time.monotonic() + 10
+    while not executor._broken and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert executor._broken
+    statuses = [ondemand.convert(big_rule(6 + i), "splunk").status for i in range(2 * ondemand.SLOTS)]
+    assert statuses == ["ok"] * (2 * ondemand.SLOTS)
+    assert all(s.executor is None or not s.executor._broken for s in list(pool.queue))
     ondemand.shutdown()
 
 
@@ -87,3 +113,27 @@ def test_collection_export_is_same_origin_and_queued(client: TestClient, monkeyp
     finally:
         monkeypatch.undo()
         client.post("/collections/guarded/delete", follow_redirects=False)
+
+
+def test_the_post_download_builds_off_the_event_loop(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
+    """The build waits for the single export slot (up to 120 s) and then converts and zips: on the loop it froze every request."""
+    import asyncio
+
+    from fastapi import Response
+
+    from sigharvest.web.routes import export
+
+    where: list[str] = []
+
+    def build(*args: object, **kwargs: object) -> Response:
+        try:
+            asyncio.get_running_loop()
+            where.append("event loop")
+        except RuntimeError:
+            where.append("worker thread")
+        return Response("ok")
+
+    monkeypatch.setattr(export, "download_response", build)
+    assert client.post("/export/download", data={"format": "csv"}).status_code == 200
+    assert client.get("/export/download?format=csv").status_code == 200
+    assert where == ["worker thread", "worker thread"]

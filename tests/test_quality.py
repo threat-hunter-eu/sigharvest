@@ -1,6 +1,9 @@
 """Quality flags: junk detection by content and paths."""
 
 import copy
+import random
+import re
+import time
 
 import pytest
 
@@ -59,3 +62,24 @@ def test_source_review_flags_preserve_rules(source, flag):
 @pytest.mark.parametrize("service", ["setup", "bits-client", "vhdmp", "windefend", "firewall-as"])
 def test_canonical_services_are_not_quality_mistakes(service):
     assert classify(_rule(logsource={"product": "windows", "service": service}), []) == []
+
+
+_OLD_TEMPLATE = re.compile(r"\$\([^)]*\)|\{\{[^}]*\}\}|<[a-z_ .|-]{3,40}>", re.I)
+
+
+def test_template_title_matches_the_regex_it_replaces() -> None:
+    rng = random.Random(1234)
+    alphabet = ["$(", "$", "(", ")", "{{", "{", "}", "}}", "<", ">", "abc", " ", "x"]
+    titles = ["".join(rng.choice(alphabet) for _ in range(rng.randrange(12))) for _ in range(20000)]
+    titles += ["AWS $(aws.eventSource) change", "{{ var }}", "{{a}x}}", "{{a}}", "<user name>", "$()", "{{}}"]
+    for title in titles:
+        assert ("template_title" in classify(_rule(title=title), [])) == bool(_OLD_TEMPLATE.search(title)), title
+
+
+@pytest.mark.parametrize("opener", ["$(", "{{"])
+def test_template_title_is_linear_on_unclosed_openers(opener: str) -> None:
+    # The regex form took about 11 s for 40,000 "$(" (quadratic); a 2 MiB rule allows ~1,000,000.
+    title = opener * 200_000
+    start = time.perf_counter()
+    assert "template_title" not in classify(_rule(title=title), [])
+    assert time.perf_counter() - start < 2.0

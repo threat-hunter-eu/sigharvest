@@ -206,7 +206,10 @@ def linked(expression: str | None) -> str:
     for i in spdx_ids(expression):
         url = link(i)
         if url:
-            out = re.sub(rf"(?<![\w.-]){re.escape(i)}(?![\w.-])", f"[{i}]({url})", out, count=1)
+            # Backslashes doubled so the id and url go in literally: rule `license:` values are third-party text,
+            # and re.sub would read a backslash in them as a template escape (or raise re.error).
+            md = f"[{i}]({url})".replace("\\", "\\\\")
+            out = re.sub(rf"(?<![\w.-]){re.escape(i)}(?![\w.-])", md, out, count=1)
     return out
 
 

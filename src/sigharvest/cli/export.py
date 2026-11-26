@@ -150,7 +150,7 @@ def export(
             if fmt in BACKENDS:
                 rep = export_backend(versions, fmt, out, s=s, allow_raw=allow_raw, allow_warnings=allow_warnings, source=telemetry)
                 _print_report(fmt, rep)
-                _nothing_written(rep.written)
+                _nothing_written(rep.written, validation)
             elif fmt == "zip":
                 import tempfile
 
@@ -160,11 +160,11 @@ def export(
                     count = export_sigma(s, versions, Path(tmp) / "rules")
                     zip_folder(Path(tmp) / "rules", out)
                 console.print(f"wrote {count} rule copies to {out}")
-                _nothing_written(count)
+                _nothing_written(count, validation)
             else:
                 count = export_sigma(s, versions, out, jsonl=fmt == "jsonl")
                 console.print(f"wrote {count} rule copies to {out}")
-                _nothing_written(count)
+                _nothing_written(count, validation)
             return
         if collection:
             from sigharvest.collections import CollectionError
@@ -211,7 +211,7 @@ def export(
     if include_private:
         console.print("[yellow]--include-private-sources: this export contains rules that must not be shared; keep it private.[/]")
     console.print("[dim]Rules keep their own licences (see manifest); check them before redistributing.[/]")
-    _nothing_written(n)
+    _nothing_written(n, validation)
 
 
 _PRIVATE_HINT = "Your own rules: add their source with --licence, or use --include-private-sources for a private copy."
@@ -225,17 +225,21 @@ def _print_report(fmt: str, rep: ExportReport) -> None:
         console.print(f"  why each rule was not written: {escape(str(rep.sidecar))}", soft_wrap=True, highlight=False)
 
 
-def _nothing_written(n: int) -> None:
+def _nothing_written(n: int, validation: str | None = None) -> None:
     """An export that matched no rule is a failure for scripts (exit 1), not a silent empty file."""
     if n == 0:
         from sqlalchemy import func, select
 
-        from sigharvest.models import LogicGroup
+        from sigharvest.models import LogicGroup, TestResult
 
         with open_session(readonly=True) as s:
             empty = not s.scalar(select(func.count()).select_from(LogicGroup))
+            # A workspace started from a release pack (`init --from-release`) has no validation results yet.
+            unvalidated = bool(validation) and not s.scalar(select(TestResult.id).where(TestResult.stage == "validate").limit(1))
         if empty:
             show_error("no rules were exported: the index is empty; run `sigharvest update` first")
+        elif unvalidated:
+            show_error("no rules were exported: no rule is validated yet, so --validation matches nothing; run `sigharvest test --stage validate` first")
         else:
             show_error("no rules were exported: no rule matches these filters (several values of one filter mean any of them)")
         raise typer.Exit(1)

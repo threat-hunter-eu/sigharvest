@@ -140,6 +140,7 @@ def _export_yaml(s: Session, groups: Iterator[LogicGroup], out: Path, *, include
     skipped: list[str] = []
     n = 0
     credits: list[dict[str, Any]] = []
+    seen: set[Path] = set()
     with (out / "manifest.jsonl").open("w", encoding="utf-8") as manifest:
         for g, v, meta in _records(s, groups):
             reason = skip_reason(str(meta.get("licence_class") or "none"), g.canonical_source, shippable, "all", include_private)
@@ -147,7 +148,7 @@ def _export_yaml(s: Session, groups: Iterator[LogicGroup], out: Path, *, include
                 link = meta.get("source_url") or ""
                 skipped.append(f"- {md(g.title)} ({md(g.canonical_source)}, {reason}){f': <{link}>' if link else ''}")
                 continue
-            rel = _rel_path(g)
+            rel = _unique_rel_path(g, seen)
             target = (root / rel).resolve()
             if not target.is_relative_to(root):
                 continue
@@ -266,14 +267,29 @@ def _rel_path(g: LogicGroup) -> Path:
     return Path(_slug(g.product or "any", 40)) / _slug(g.category or g.service or "generic", 40) / f"{_slug(g.title)}_{g.logic_hash[:8]}.yml"
 
 
+def _unique_rel_path(g: LogicGroup, seen: set[Path]) -> Path:
+    """_rel_path, or, when an earlier rule of this export already has that file, a longer name: the next 8 hex
+    digits of the logic hash (as in the zip), then the whole hash, which is unique per group. Never two rules in
+    one file."""
+    rel = _rel_path(g)
+    base = rel.with_suffix("")
+    for candidate in (rel, Path(f"{base}_{g.logic_hash[8:16]}.yml")):
+        if candidate not in seen:
+            seen.add(candidate)
+            return candidate
+    rel = base.with_name(f"{_slug(g.title)}_{g.logic_hash}.yml")
+    seen.add(rel)
+    return rel
+
+
 def export_zip(s: Session, groups: Iterator[LogicGroup], out: Path, *, include_private: bool = False) -> tuple[int, int]:
     """The same zip as the web UI's Export page (export_zip.write_zip; top folder = the file name without .zip).
     Returns (rules copied, rules only linked in SKIPPED.md); fixed timestamps, so equal input gives equal bytes."""
-    from sigharvest.export_zip import write_zip
+    from sigharvest.export_zip import safe_stem, write_zip
 
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_name(out.name + ".partial")
-    stem = re.sub(r"[^A-Za-z0-9._-]", "_", out.name.removesuffix(".zip"))[:80] or "rules"
+    stem = safe_stem(out.name.removesuffix(".zip"))
     try:
         with tmp.open("wb") as fh:
             result = write_zip(s, groups, fh, stem, include_private=include_private)
