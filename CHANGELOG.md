@@ -22,6 +22,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 - The attribution page of the static site (`sigharvest site build`) shows per-source quality, measured on the rules
   whose canonical copy each source holds: their number, median score, share that validates without a warning and
   share converted with field mappings per backend.
+- Python 3.14 is supported and tested in CI (full suite, `[convert]`). Python 3.15 is not yet: pySigma 2 depends on
+  `google-re2`, which has no 3.15 wheel, so installing needs a C++ toolchain and abseil.
 
 ### Changed
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Runs on this machine what ci.yml, ci-full.yml and ci-docs.yml run on GitHub (docs/automation.md#what-runs-when),
-# without spending Actions minutes: lint, actionlint (when installed), pytest on 3.12 [convert], 3.13 [convert] and
+# without spending Actions minutes: lint, actionlint (when installed), pytest on 3.12, 3.13 and 3.14 [convert] and
 # 3.12 [convert-legacy], the docs examples on both extras, the phone-width layout (Playwright), the acceptance matrix
 # (locked/newest x convert/convert-legacy) and the privacy gate. Only the Windows job has no local equivalent.
 #
 #   scripts/ci-full-local.sh            # everything; a failed step does not stop the others
 #   scripts/ci-full-local.sh --quick    # only what runs on every push (ci.yml)
 #
-# Extra environments (3.13, [convert-legacy]) live in ${SIGHARVEST_CI_ENVS:-~/.cache/sigharvest-ci}, outside the
+# Extra environments (3.13, 3.14, [convert-legacy]) live in ${SIGHARVEST_CI_ENVS:-~/.cache/sigharvest-ci}, outside the
 # checkout. Exit: 0 when every step passed, 1 otherwise (the failed steps are listed at the end).
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
@@ -22,6 +22,7 @@ step() { # step NAME COMMAND...
 }
 legacy() { UV_PROJECT_ENVIRONMENT="$ENVS/py312-legacy" uv run --locked --python 3.12 --no-default-groups --group test --extra convert-legacy "$@"; }
 py313() { UV_PROJECT_ENVIRONMENT="$ENVS/py313" uv run --locked --python 3.13 "$@"; }
+py314() { UV_PROJECT_ENVIRONMENT="$ENVS/py314" uv run --locked --python 3.14 "$@"; }
 
 uv sync --locked --python 3.12 || exit 2
 step "ruff" uv run --no-sync ruff check src tests scripts
@@ -33,6 +34,7 @@ step "privacy gate" python3 -I scripts/maintainer/privacy_gate.py . --allowlist 
 
 if [ "$QUICK" = 0 ]; then
     step "pytest (py3.13, convert)" py313 pytest -n auto
+    step "pytest (py3.14, convert)" py314 pytest -n auto
     step "pytest (py3.12, convert-legacy)" legacy pytest -n auto
     step "docs examples (convert)" uv run --no-sync pytest -n auto -m docs tests/test_docs.py
     step "docs examples (convert-legacy)" legacy pytest -n auto -m docs tests/test_docs.py

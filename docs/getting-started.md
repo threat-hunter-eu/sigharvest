@@ -15,7 +15,9 @@ This page takes you from nothing to a searchable, deduplicated Sigma index in on
 ## 1. Install
 
 Requirements: **Python 3.12 or newer**, **Git**, and either [uv](https://docs.astral.sh/uv/) or
-[pipx](https://pipx.pypa.io/). Linux and macOS are supported; on Windows use WSL.
+[pipx](https://pipx.pypa.io/). Linux and macOS are supported; on Windows use WSL. Python 3.12 to 3.14 are tested. On
+3.15, pySigma 2 needs `google-re2`, which has no 3.15 wheel yet: pick 3.14 (`uv tool install --python 3.14 ...`) or
+have a C++ toolchain and abseil to build it.
 
 <!-- doctest: skip network (installs from PyPI) -->
 ```bash

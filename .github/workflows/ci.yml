@@ -1,5 +1,5 @@
 # The checks that run on every push, to any branch: kept small on purpose (each job is billed rounded up to a whole
-# minute). Python 3.13, [convert-legacy], Windows, the phone-width layout, the acceptance matrix and the docs examples
+# minute). Python 3.13 and 3.14, [convert-legacy], Windows, the phone-width layout, the acceptance matrix and the docs examples
 # run in ci-full.yml and ci-docs.yml (pull requests to main, daily when enabled, manual). docs/automation.md#what-runs-when
 # lists both sets; tests/test_workflows.py keeps this one small.
 name: CI

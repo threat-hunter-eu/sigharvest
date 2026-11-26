@@ -6,7 +6,7 @@ has the CI split.
 | Workflow | Trigger | Jobs (permissions) | Output |
 |---|---|---|---|
 | `ci.yml` | push to any branch (not `data`), PR to main, manual | `lint` ruff, ruff format, mypy, actionlint; `test` pytest on 3.12 with [convert] + CLI contract smoke; `privacy` gate (all `contents: read`) | pass/fail |
-| `ci-full.yml` | PR to main (not docs-only), daily 02:41 UTC when `SIGHARVEST_FULL_CI_ENABLED`, manual | `test` pytest on 3.13 [convert] and 3.12 [convert-legacy]; `layout` Playwright at 390 px; `windows` WSL refusal + portability tests; `acceptance` wheel install + offline first-run journey, locked/newest x convert/convert-legacy (all `contents: read`) | pass/fail |
+| `ci-full.yml` | PR to main (not docs-only), daily 02:41 UTC when `SIGHARVEST_FULL_CI_ENABLED`, manual | `test` pytest on 3.13 and 3.14 [convert] and 3.12 [convert-legacy]; `layout` Playwright at 390 px; `windows` WSL refusal + portability tests; `acceptance` wheel install + offline first-run journey, locked/newest x convert/convert-legacy (all `contents: read`) | pass/fail |
 | `ci-docs.yml` | PR to main, daily with `ci-full.yml`, manual | `docs` every `<!-- doctest -->` example on [convert] and [convert-legacy] (`contents: read`) | pass/fail |
 | `nightly.yml` | `17 3 * * *` + manual (`force_release`, `cold_start`) | `build` (read) -> `sign` (id-token; only with signing on and the repository verified public) -> `publish` (contents write) -> `pages` (reusable, pages write); `keepalive` (contents write) | GitHub Release `rules-YYYY-MM-DD`, stats commit on the `data` branch |
 | `pages.yml` | called by `nightly.yml`, manual, push of `src/sigharvest/site/**` | `build` (read; stops unless the repository is verified public) -> `deploy` (pages write, id-token) | GitHub Pages site |
@@ -76,7 +76,7 @@ Linux rate, so the checks are split by cost. `tests/test_workflows.py` keeps the
 | Event | Workflows | Jobs |
 |---|---|---|
 | push to any branch | `ci.yml` | `lint` (ruff, ruff format, mypy, actionlint), `test` (pytest, 3.12, [convert], `-n auto`), `privacy` (about 5 billed minutes) |
-| pull request to main | `ci.yml` `lint` + `privacy` (and `test` for a fork's PR, whose branch had no push run here), `ci-full.yml`, `ci-docs.yml` | 3.13, [convert-legacy], layout, Windows, the acceptance matrix, the docs examples; a docs-only change (`*.md`, `docs/`) skips `ci-full.yml` but not the docs examples |
+| pull request to main | `ci.yml` `lint` + `privacy` (and `test` for a fork's PR, whose branch had no push run here), `ci-full.yml`, `ci-docs.yml` | 3.13, 3.14, [convert-legacy], layout, Windows, the acceptance matrix, the docs examples; a docs-only change (`*.md`, `docs/`) skips `ci-full.yml` but not the docs examples |
 | daily 02:41 UTC | `ci-full.yml` + `ci-docs.yml` | as for a pull request, only when the repository variable `SIGHARVEST_FULL_CI_ENABLED` is `true` (default off: the jobs are skipped and nothing is billed) |
 | manual (Actions -> Run workflow) | any of the three | everything in that workflow, on the branch you pick |
 
@@ -89,7 +89,7 @@ minutes): `scripts/ci-full-local.sh` (`--quick` runs the push set only).
 ### Jobs
 
 - `test` runs `uv sync --locked` (the dev group pulls in `sigharvest[convert]`, pySigma 2) and `pytest -n auto`
-  on Python 3.12 (every push) and 3.13 (`ci-full.yml`), plus one job with `--no-default-groups --group test --extra convert-legacy` (pySigma 1.5,
+  on Python 3.12 (every push), 3.13 and 3.14 (`ci-full.yml`), plus one job with `--no-default-groups --group test --extra convert-legacy` (pySigma 1.5,
   all seven backends). Tests of a target whose backend is not installed (`@pytest.mark.backend(...)` or a target in
   the parameter id) are skipped, so the Elastic, OpenSearch and MDE tests run in the legacy job. The tests are
   offline: local fixtures and local git repositories only.
