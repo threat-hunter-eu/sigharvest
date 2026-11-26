@@ -29,6 +29,9 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- The web UI's token login (`serve --token-env`) had no limit on wrong guesses; an address that sends 20 wrong tokens
+  within a minute now gets 429 until the minute has passed. An IPv6 /64 counts as one address, and an IPv4-mapped IPv6
+  address counts as its IPv4 address. (thanks @elhoim)
 - Credentials written into a source URL (`https://user:token@host/...` or a token in the query string such as
   `?private_token=...`) were shown by `/sources`, `/sources/<name>` and `/api/sources` and written to a release's
   `manifest.json` and `ATTRIBUTION.md`; these now show the URL without them. Use `auth` for tokens. (thanks @elhoim)
