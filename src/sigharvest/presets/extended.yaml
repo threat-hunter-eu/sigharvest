@@ -522,14 +522,13 @@ sources:
 - name: timescale__rsigma
   url: https://github.com/timescale/rsigma.git
   paths:
-  - crates/**
   - fuzz/seeds/**
   - scripts/perf/fixtures/**
   licence: MIT
   redistributable: true
   priority: 50
   tier: extended
-  notes: ~201 valid rules, 159 unique; github stars=190 pushed=2026-11-14
+  notes: 'github stars=190 pushed=2026-11-14; crates/** (Rust test fixtures, incl. rules inside .rs files) excluded 2026-11-26'
 - name: zendannyy__sigma-rules
   url: https://github.com/zendannyy/sigma-rules.git
   paths:
