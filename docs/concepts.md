@@ -143,8 +143,29 @@ Many repositories carry documents that look like Sigma but are not useful rules.
 | template_title | unrendered templates in the title |
 | match_all | every value is a bare wildcard |
 | placeholder_logsource | the log source is only a placeholder (`category: generic` / `test`, an unfilled template): simulator markers, translation stubs |
+| weak_high_severity | a high or critical rule with `weak_detection` (see below) |
 
-Informational flags (not hidden): `ioc_list`, `converted`, `broad_logsource`, `unused_selection`,
+Detection strength (`quality_strength.py`): `weak_detection` means every way to satisfy the condition uses only
+weak values, so the rule matches almost any event of its log source; `weak_branch` means one OR branch is weak
+while the others are specific. Both are informational and lower the score (-15 and -5). Weak values:
+
+- a wildcard or contains/startswith/endswith value with fewer than 3 literal characters (`Image|startswith: /`,
+  `CommandLine|contains: '-e '`), a regular expression with fewer than 3 literal characters, a CIDR of /8 or wider,
+  `exists` on a catch-all field (`message`, `raw`);
+- a keyword list (no field name) whose keywords are all bare tokens of at most 5 characters (`5107`, `$lot`,
+  `cq9`): keywords are searched in the whole event, where such tokens occur by chance in ports, sizes, ids and
+  timestamps. A space or a path separator (`scp `, `.git/`) or one longer phrase in the list keeps the list specific,
+  as in SigmaHQ's linux and syslog keyword rules; a keyword that contains another one of the same list (`709311`
+  next to `70931`) is ignored, because it cannot match an event the shorter one misses;
+- a selection made only of match-all fields and plain numbers (`ResultType: 0` with `Location: '*'`): `'*'` restricts
+  nothing and a lone status or event code is not specific. A number alone (`EventID: 4688`) or next to a text value
+  is not weak.
+
+A negated selection adds no strength (`selection and not filter` is as weak as `selection`), and plain equality is
+never weak (`UserAgent: ''` is a real indicator).
+
+Informational flags (not hidden): `ioc_list`, `converted`, `broad_logsource`, `weak_detection`, `weak_branch`,
+`unused_selection`,
 `unused_filter`, `foreign_field_names` and logsource spelling flags. Filter with `sigharvest search --flag NAME`.
 `foreign_field_names` marks a Windows rule with dotted field names (`process.command_line`, `data.Image`): they come
 from one SIEM's stored schema, the Sigma Windows pipelines do not map them, and the converted query never matches

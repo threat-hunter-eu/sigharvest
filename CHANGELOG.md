@@ -31,6 +31,10 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Changed
 
+- `weak_detection` also covers keyword lists whose keywords are all bare tokens of at most 5 characters (`5107`,
+  `$lot`), which match by chance anywhere in an event, and selections made only of match-all fields and plain numbers
+  (`ResultType: 0` with `Location: '*'`). A space, a path separator or one longer keyword keeps a list specific. The
+  detection strength rules are now documented in `docs/concepts.md`.
 - Conversion checks the fields of every Sysmon category, not only process creation and registry: a rule that tests a
   field its Sysmon event does not carry (`TargetFileName`, `file.path` or `CommandLine` on `file_event`...) gets a
   `partial` Sysmon result with the missing fields, instead of an `ok` query that never matches. A field tested only
