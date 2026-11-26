@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from sigharvest.attack import Matrix, session_matrix, tag_metadata
+from sigharvest.db import IN_CHUNK
 from sigharvest.export_policy import attribution_markdown, provenance
 from sigharvest.identity import utf8
 from sigharvest.index import GroupFilters, search_groups
@@ -248,7 +249,12 @@ def export_queries(
     converter: replaces conversion.convert_cached (the web passes ondemand.convert: bounded worker processes)."""
     from sigharvest.query import export_backend
 
-    versions = [v for g in groups if g.kind in ("rule", "correlation") for v in [s.get(RuleVersion, g.canonical_version_id)] if v is not None]
+    wanted = [g for g in groups if g.kind in ("rule", "correlation")]
+    found: dict[int, RuleVersion] = {}
+    for i in range(0, len(wanted), IN_CHUNK):
+        ids = [g.canonical_version_id for g in wanted[i : i + IN_CHUNK]]
+        found.update({v.id: v for v in s.scalars(select(RuleVersion).where(RuleVersion.id.in_(ids)))})
+    versions = [found[g.canonical_version_id] for g in wanted if g.canonical_version_id in found]
     return export_backend(
         versions,
         target,

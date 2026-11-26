@@ -277,11 +277,8 @@ def canonical_version_ids(s: Session) -> set[int]:
     return {key[4] for key in best.values()}
 
 
-def rebuild(s: Session, progress: Callable[[str], None] | None = None, *, commit: bool = True, full: bool = True, workers: int | None = None) -> int:
-    """Rebuild the whole derived index (logic groups, families, near duplicates, overlap, FTS) in one transaction.
-
-    `full` is accepted for compatibility; every rebuild is complete.
-    """
+def rebuild(s: Session, progress: Callable[[str], None] | None = None, *, commit: bool = True, workers: int | None = None) -> int:
+    """Rebuild the whole derived index (logic groups, families, near duplicates, overlap, FTS) in one transaction."""
     from sigharvest import index_delta, index_families, index_near
     from sigharvest.attack import session_matrix
     from sigharvest.attack_score import CONTEXT_KEY

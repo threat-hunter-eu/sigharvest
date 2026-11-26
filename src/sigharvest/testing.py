@@ -124,10 +124,6 @@ def _parse(raw: str) -> Any:
     return conversion.parse(raw)
 
 
-def _err(exc: BaseException) -> str:
-    return f"{type(exc).__name__}: {str(exc).strip()[:400]}"
-
-
 def _detection_parses(raw: str) -> bool:
     from sigharvest.detection import detection_only
 
@@ -200,7 +196,7 @@ def _validate_unbounded(item: tuple[int, str, str]) -> tuple[int, str, str, dict
             for e in sorted(validator.iter_errors(data), key=lambda e: list(e.path))[:20]:
                 detail["schema"].append(f"{'/'.join(map(str, e.path)) or '<root>'}: {e.message[:200]}")
     except Exception as exc:  # noqa: BLE001
-        detail["schema"].append(_err(exc))
+        detail["schema"].append(conversion._err(exc))
     try:
         coll = _parse(raw)
         detail["parse"] += conversion.parse_errors(coll)  # each message once; "no rule could be parsed" when empty
@@ -208,7 +204,7 @@ def _validate_unbounded(item: tuple[int, str, str]) -> tuple[int, str, str, dict
             for issue in _W["validator"].validate_rule(coll.rules[0]):
                 detail["issues"].append({"validator": type(issue).__name__, "severity": issue.severity.name.lower(), "description": issue.description[:300]})
     except Exception as exc:  # noqa: BLE001
-        detail["parse"].append(_err(exc))
+        detail["parse"].append(conversion._err(exc))
     if detail["parse"] and kind == "rule" and _detection_parses(raw):
         # Only the metadata is broken (date format, id, tags, level...): the detection itself is valid.
         detail["metadata"] = detail.pop("parse")

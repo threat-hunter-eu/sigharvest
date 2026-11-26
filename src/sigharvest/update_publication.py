@@ -60,30 +60,6 @@ def sessions(path: Path) -> sessionmaker[Session] | None:
     return sessionmaker(active[1], expire_on_commit=False, join_transaction_mode="create_savepoint")
 
 
-@contextmanager
-def stage_savepoint(path: Path) -> Iterator[None]:
-    """Make one optional stage all-or-nothing inside the candidate.
-
-    Stage sessions release their own savepoints on commit; this outer savepoint on the
-    candidate connection also discards their committed writes when the stage raises.
-    Outside a candidate (or for another database) it does nothing.
-    """
-    active = _ACTIVE.get()
-    if active is None or path.resolve() != active[0]:
-        yield
-        return
-    nested = active[1].begin_nested()
-    try:
-        yield
-    except BaseException:
-        if nested.is_active:
-            nested.rollback()
-        raise
-    else:
-        if nested.is_active:
-            nested.commit()
-
-
 @dataclass
 class Publication:
     accepted: bool = False
