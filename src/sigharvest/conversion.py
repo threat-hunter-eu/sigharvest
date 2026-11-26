@@ -103,7 +103,7 @@ ELASTIC = ("lucene", "esql", "opensearch")
 APPLICABLE = ("ok", "raw", "partial", "warning", "error", "timeout", "resource_failure")
 # Bump when the selection or classification logic changes: stored results with another fingerprint are re-tested.
 # (Not the same thing as identity.LOGIC_VERSION, which versions the logic hash.)
-SELECTION_VERSION = 4  # source capabilities, audit/ECS corrections and per-source results
+SELECTION_VERSION = 5  # Sysmon fields checked for every Sysmon category (datasources.SYSMON_FIELDS)
 STATE_VERSION = 2  # owned graph restored from a snapshot with unused memo writes removed
 
 WINDOWS_PS_CATEGORIES = {"ps_module", "ps_script", "ps_classic_start", "ps_classic_provider_start", "ps_classic_script"}
