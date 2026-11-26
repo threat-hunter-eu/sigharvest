@@ -117,6 +117,42 @@ def test_other_sources_and_categories_are_not_checked(source: str, category: str
     assert limitations(source, category, {"anything.at.all"}, "splunk") == ([], [])
 
 
+def filtered(condition: str, filter_body: str = "CommandLine|contains: 'x'", extra: str = "") -> str:
+    return (
+        "title: t\nlogsource: {product: windows, category: network_connection}\ndetection:\n"
+        f"  sel_img:\n    Image|endswith: '\\rundll32.exe'\n{extra}  filter_cmd:\n    {filter_body}\n  condition: {condition}\n"
+    )
+
+
+@pytest.mark.parametrize("condition", ["sel_img and not filter_cmd", "1 of sel_* and not 1 of filter_*", "not filter_cmd and sel_img"])
+def test_field_only_in_negated_filters_keeps_the_query(condition: str) -> None:
+    c = convert(filtered(condition), "splunk")
+    assert c.status == "ok" and c.covered_sources == ["sysmon"] and not c.missing_fields
+    assert "CommandLine" in c.queries[0] and c.combined_query
+    assert any("only in negated filters: CommandLine" in n and "more false positives" in n for n in c.notes)
+
+
+@pytest.mark.parametrize(
+    ("condition", "filter_body", "extra"),
+    [
+        ("sel_img and filter_cmd", "CommandLine|contains: 'x'", ""),  # positive use
+        ("sel_img and not filter_cmd and sel_cmd", "CommandLine|contains: 'x'", "  sel_cmd:\n    CommandLine|contains: 'y'\n"),
+        ("sel_img and not (sel_x and not filter_cmd)", "CommandLine|contains: 'x'", "  sel_x:\n    Image|contains: 'y'\n"),  # double negation
+        ("sel_img and not filter_cmd", "CommandLine: null", ""),  # absent field matches null: the filter would drop everything
+        ("sel_img and not filter_cmd", "CommandLine|exists: true", ""),
+    ],
+)
+def test_other_uses_still_block_the_query(condition: str, filter_body: str, extra: str) -> None:
+    c = convert(filtered(condition, filter_body, extra), "splunk")
+    assert c.status == "partial" and c.missing_fields == ["CommandLine"] and not c.queries
+
+
+def test_negated_only_split_in_limitations() -> None:
+    missing, notes = limitations("sysmon", "file_event", {"Image", "CommandLine", "file.path"}, "splunk", negated_only={"CommandLine"})
+    assert missing == ["file.path"]
+    assert notes[0].endswith(": file.path") and "only in negated filters: CommandLine" in notes[1]
+
+
 def test_non_windows_rules_are_untouched() -> None:
     c = convert(rule("file_event", "file.path", logsource="product: linux"), "splunk")
     assert c.status != "partial" and not c.missing_fields

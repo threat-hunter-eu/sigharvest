@@ -117,7 +117,11 @@ The `--backend` filter and the conversion part of the score need stored results.
   `TargetFileName` on `file_event` is missing (Sysmon writes `TargetFilename`), and so are `CommandLine` or
   `ParentImage` on `file_event`/`network_connection` (only process creation carries them) and ECS or Winlogbeat
   names (`file.path`, `winlog.event_data.Image`). The reason names the category, the Sysmon event ids and the
-  missing fields. Such a query would convert, but never match Sysmon events.
+  missing fields. Such a query would convert, but never match Sysmon events. A field tested only in negated filters
+  (`sel and not filter_*`) does not block the query: on Sysmon the filter excludes nothing, so the query stays, with
+  a note that it may raise more false positives (unless the filter tests the field for null or existence, which an
+  absent field inverts). Rules written for enriched agents (SigmaHQ uses `CommandLine` and `ParentImage` on
+  `file_event`, `image_load` and `network_connection`) are therefore `partial` on Sysmon only when they need the field.
 - **native backend**: the summary report also shows failures on the backend a rule is most likely written for:
   `microsoft365defender` when it is installed and has a pipeline for the rule's log source, otherwise `splunk`.
 

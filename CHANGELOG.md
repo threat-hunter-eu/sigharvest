@@ -33,8 +33,9 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 - Conversion checks the fields of every Sysmon category, not only process creation and registry: a rule that tests a
   field its Sysmon event does not carry (`TargetFileName`, `file.path` or `CommandLine` on `file_event`...) gets a
-  `partial` Sysmon result with the missing fields, instead of an `ok` query that never matches. Stored conversion
-  results are re-tested.
+  `partial` Sysmon result with the missing fields, instead of an `ok` query that never matches. A field tested only
+  in negated filters keeps the query, with a note (the filter excludes nothing on Sysmon). Stored conversion results
+  are re-tested.
 - A `# SPDX-License-Identifier:` header in a rule file now counts as the rule's own licence, like its `license:`
   field (the stricter of the two wins). It can only narrow the source licence, never widen it, so a repository that
   relicenses by editing file headers is caught at the next sync.

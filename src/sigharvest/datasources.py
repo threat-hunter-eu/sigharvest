@@ -6,7 +6,7 @@ made equivalent by renaming them. See docs/concepts.md for ingestion prerequisit
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 
 
@@ -251,11 +251,24 @@ def _sysmon_event(category: str) -> str:
     return f"{category} (event{'s' if len(ids) > 1 else ''} {', '.join(map(str, ids))})"
 
 
-def limitations(source: str, category: str | None, fields: set[str], target: str | None = None) -> tuple[list[str], list[str]]:
-    """Missing equivalents and prerequisites. Never remove these fields from a detection."""
+def limitations(
+    source: str, category: str | None, fields: set[str], target: str | None = None, *, negated_only: Collection[str] = ()
+) -> tuple[list[str], list[str]]:
+    """Missing equivalents and prerequisites. Never remove these fields from a detection.
+
+    `negated_only`: fields tested only in negated filters. An absent Sysmon field there does not block the query (the
+    filter excludes nothing, so it matches more, never less): it gets a note, not a missing field."""
     if source == "sysmon" and category in SYSMON_FIELDS:
-        missing = sorted(fields - SYSMON_FIELDS[category])
-        notes = [f"no documented native Sysmon field in {_sysmon_event(category)}: " + ", ".join(missing)] if missing else []
+        absent = fields - SYSMON_FIELDS[category]
+        soft = sorted(absent & set(negated_only))
+        missing = sorted(absent - set(soft))
+        event = _sysmon_event(category)
+        notes = [f"no documented native Sysmon field in {event}: " + ", ".join(missing)] if missing else []
+        if soft:
+            notes.append(
+                f"no documented native Sysmon field in {event}, used only in negated filters: {', '.join(soft)}; "
+                "on Sysmon these filters exclude nothing (more false positives possible)"
+            )
         if target in ("lucene", "esql", "opensearch") and category in SECURITY_CATEGORIES:
             # Winlogbeat removes these raw fields. ecs_windows does not implement equivalent compound mappings.
             unmapped = fields & {"Hashes", "Details", "User"}
