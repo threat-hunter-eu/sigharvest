@@ -40,6 +40,16 @@ HTML = {"accept": "text/html"}
         ("http://u:p@a@host:8080/x?q=1", "http://host:8080/x?q=1"),
         ("ssh://git:pw@host/org/r.git", "ssh://git@host/org/r.git"),
         ("https://u:p@[::1/x", "https://[::1/x"),  # malformed: the userinfo still goes
+        # a secret in the query string or fragment: the value goes, the name stays
+        ("https://host/rules.zip?private_token=SECRET", "https://host/rules.zip?private_token=REDACTED"),
+        (
+            "https://bucket/rules.zip?X-Amz-Signature=SECRET&X-Amz-Credential=AK&ref=main",
+            "https://bucket/rules.zip?X-Amz-Signature=REDACTED&X-Amz-Credential=REDACTED&ref=main",
+        ),
+        ("https://host/rules.zip?a=1&API_KEY=SECRET#x", "https://host/rules.zip?a=1&API_KEY=REDACTED#x"),
+        ("https://host/rules.zip#access_token=SECRET&state=1", "https://host/rules.zip#access_token=REDACTED&state=1"),
+        ("https://alice:pw@host/rules.zip?password=SECRET", "https://host/rules.zip?password=REDACTED"),  # both at once
+        ("https://u:p@[::1/x?token=SECRET", "https://[::1/x?token=REDACTED"),  # malformed URL, query still redacted
     ],
 )
 def test_public_url_drops_credentials(url: str, shown: str) -> None:
@@ -47,7 +57,17 @@ def test_public_url_drops_credentials(url: str, shown: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "url", ["https://github.com/a/b.git", "ssh://git@host/org/r.git", "git@github.com:a/b.git", "/srv/rules", "file:///srv/rules", "https://[::1"]
+    "url",
+    [
+        "https://github.com/a/b.git",
+        "ssh://git@host/org/r.git",
+        "git@github.com:a/b.git",
+        "/srv/rules",
+        "file:///srv/rules",
+        "https://[::1",
+        "https://host/rules.zip?ref=main",  # a parameter that is not a secret stays
+        "https://host/rules.zip?ref=main#L10-L20",
+    ],
 )
 def test_public_url_keeps_urls_without_secrets(url: str) -> None:
     assert public_url(url) == url

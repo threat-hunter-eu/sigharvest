@@ -205,6 +205,10 @@ def test_single_file_token_and_errors(tmp_path: Path, monkeypatch: pytest.Monkey
     assert seen[0].headers["authorization"] == "Bearer s3cret"
     with pytest.raises(SyncError, match="http"):
         sync_http(SourceConfig(name="f2", type="http", url="ftp://example.org/a.zip"), ws)
+    seen.clear()
+    with pytest.raises(SyncError, match="plain http"):
+        sync_http(SourceConfig(name="f4", type="http", url="http://example.org/a.yml", auth="RULES_TOKEN"), ws)
+    assert seen == []  # the token never left the process
     serve(monkeypatch, lambda r: httpx.Response(404))
     with pytest.raises(httpx.HTTPStatusError):
         sync_http(SourceConfig(name="f3", type="http", url="https://example.org/missing.zip"), ws)

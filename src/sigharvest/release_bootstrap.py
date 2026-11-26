@@ -113,7 +113,8 @@ def resolve(location: str, note: Callable[[str], None] | None = None) -> str:
 
 def _safe_rel(path: str | None, fallback: str) -> str:
     """A relative POSIX path inside the source folder (no absolute paths, no '..', no odd characters)."""
-    parts = [p for p in PurePosixPath(path or "").parts if p not in ("", ".", "/")]
+    # The root anchor is "/" or, for exactly two leading slashes, "//" (POSIX keeps it): drop either.
+    parts = [p for p in PurePosixPath(path or "").parts if p.strip("/") not in ("", ".")]
     if not parts or any(p == ".." or p.startswith(".") or "\\" in p or "\0" in p or len(p) > MAX_PART for p in parts) or len(parts) > 20:
         return fallback
     rel = "/".join(parts)

@@ -13,7 +13,10 @@
 
 from __future__ import annotations
 
+import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -142,3 +145,22 @@ def test_pages_artifact_root_is_the_base_path_folder():
     assert "site build _site" in build["run"] and '--base-url "${BASE_PATH%/}/"' in build["run"]
     upload = next(s for s in steps if str(s.get("uses", "")).startswith("actions/upload-pages-artifact@"))
     assert upload["with"]["path"] == "_site${{ steps.pages.outputs.base_path }}"
+
+
+def test_discover_pr_lookup_ignores_fork_prs():
+    """`gh pr list --head` matches the branch name only: a fork PR from `automation/discover` must not be edited."""
+    steps = [s for job in _load("discover.yml")["jobs"].values() for s in job.get("steps", [])]
+    run = next(str(s["run"]) for s in steps if "gh pr list" in str(s.get("run", "")))
+    m = re.search(r"gh pr list --head \"\$PR_BRANCH\" --state open --json (\S+)\s*\\?\s*--jq '([^']+)'", run)
+    assert m, "discover.yml: PR lookup not found"
+    if shutil.which("jq"):  # gh evaluates --jq with gojq; jq agrees on this filter
+        listed = [{"number": 7, "isCrossRepository": True}, {"number": 9, "isCrossRepository": False}]
+
+        def pick(prs: list[dict]) -> str:
+            cmd = ["jq", "-r", m.group(2)]
+            return subprocess.run(cmd, input=json.dumps(prs), capture_output=True, text=True, check=True).stdout.strip()
+
+        assert pick(listed) == "9", "discover.yml: the PR lookup picked a fork PR"
+        assert pick(listed[:1]) == ""  # only a fork PR: the job creates its own
+        assert pick([]) == ""
+    assert "isCrossRepository" in m.group(1).split(","), "discover.yml: PR lookup does not fetch isCrossRepository"

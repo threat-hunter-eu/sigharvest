@@ -161,9 +161,14 @@ def convert(
             slot = slots.get(timeout=wait)
         except queue.Empty:
             raise Busy("busy converting other rules") from None
+        args = (raw, target, kind, list(siblings), variant, list(sources) if sources is not None else None)
         try:
-            future = slot.submit(raw, target, kind, list(siblings), variant, list(sources) if sources is not None else None)
             try:
+                try:
+                    future = slot.submit(*args)
+                except BrokenProcessPool:  # the idle worker died since the last conversion: start a fresh one
+                    slot.kill()
+                    future = slot.submit(*args)
                 return future.result(timeout=DEADLINE)
             except FutureTimeout:
                 slot.kill()

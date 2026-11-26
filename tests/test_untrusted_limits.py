@@ -14,6 +14,7 @@ from sigharvest.documents import looks_like_sigma
 from sigharvest.ingest import _as_text
 from sigharvest.licensing import normalise
 from sigharvest.quality_templates import baseline_query
+from sigharvest.web.highlight import yaml_html
 from tests.test_pipeline import RULE, UIDS
 
 
@@ -136,3 +137,11 @@ def test_show_does_not_print_terminal_controls_from_upstream_rules(tmp_path: Pat
 
     assert "Test h" in res.output and "x�[1a�[2k" in res.output and "d�[2J" in res.output and "h�[2J.yml" in res.output
     assert "\x1b" not in res.output
+
+
+def test_condition_highlight_is_linear_on_digit_runs():
+    # A long digit run with a non-digit tail (it is not a literal) on a condition line, under MAX_BYTES.
+    html = _fast(yaml_html, "detection:\n    condition: " + "1" * 250_000 + "x\n")
+    assert "1" * 250_000 + "x" in html
+    assert '<span class="y-kw">1 of</span> ' in yaml_html("detection:\n    condition: 1 of selection_*\n")
+    assert '<span class="y-kw">12 of</span>' in yaml_html("detection:\n    condition: a12 of them\n")

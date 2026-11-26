@@ -46,7 +46,7 @@ sources:
 | `copyright` | optional: the publisher's copyright line (`Copyright (c) 2022 Example Labs`), written into release and export `NOTICE.md`; the lines in the source's own LICENSE / NOTICE files are used too |
 | `priority` | Lower number wins when the same rule appears in several sources (default 50) |
 | `enabled` | `false` keeps the entry but skips it |
-| `auth` | Name of an environment variable holding an access token (never stored) |
+| `auth` | Name of an environment variable holding an access token (never stored); an `http` source sends it only over HTTPS |
 | `urls`, `files` | Explicit HTTPS files/pages (`http-files`, `html`) or dataset files (`huggingface`) |
 | `notes`, `tier` | Free text / informational |
 
@@ -115,8 +115,10 @@ export ACME_TOKEN=...            # read-only token
 sigharvest sources add acme-private https://github.com/acme/private-rules.git --auth ACME_TOKEN
 ```
 
-Do not put a token in the URL itself (`https://user:token@host/...`): the web UI, the API and releases show source
-URLs without their credentials, but sources.yaml and the database keep the URL as written.
+Do not put a token in the URL itself (`user:token@` or a query parameter such as `?private_token=...`): the web UI,
+the API and releases show source URLs without their credentials and with the value of every query or fragment
+parameter whose name contains `token`, `key`, `secret`, `pass`, `pwd`, `auth`, `sig`, `credential` or `session`
+replaced by `REDACTED`, but sources.yaml and the database keep the URL as written.
 
 A **local folder** (your own detections, work in progress, an export you are allowed to use):
 
