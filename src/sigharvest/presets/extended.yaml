@@ -3516,11 +3516,12 @@ sources:
   paths:
   - src/prohori/rules/builtin/**
   - tests/fixtures/rules/valid/**
-  licence: MIT
-  redistributable: true
+  licence: LicenseRef-PolyForm-Strict-1.0.0
+  redistributable: false
   priority: 50
   tier: extended
-  notes: ~15 valid rules, 14 unique; github stars=1 pushed=2026-11-13
+  notes: '~15 valid rules, 14 unique; github stars=1 pushed=2026-11-13; relicensed 2026-11-15 from MIT to PolyForm Strict
+    1.0.0 (LICENSE and SPDX header in every rule file; no redistribution): index metadata/links only'
 - name: z35tyyyy__czsh
   url: https://github.com/Z35Tyyyy/czsh.git
   paths:
