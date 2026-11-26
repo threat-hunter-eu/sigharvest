@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from sigharvest.db import IN_CHUNK
 from sigharvest.documents import MAX_FILE_BYTES, Document, load_documents, looks_like_sigma
 from sigharvest.identity import logic_hash, resolve_rule_id, sha256_hex, title_slug
+from sigharvest.licensing import spdx_header, stricter
 from sigharvest.models import Occurrence, Quarantine, RuleVersion, Source, utcnow
 from sigharvest.normalize import logsource
 from sigharvest.quarantine import DATA_ERRORS, record_failure, rejected_documents
@@ -116,7 +117,9 @@ def _version_fields(doc: Document, ch: str, lh: str, rid: str, flags: list[str],
         "author": _as_text(d.get("author")),
         "date": (_as_text(d.get("date")) or "")[:20] or None,
         "modified": (_as_text(d.get("modified")) or "")[:20] or None,
-        "rule_license": (_as_text(d.get("license")) or "")[:100] or None,
+        # The rule's own licence: its `license:` field or a `# SPDX-License-Identifier:` header in the document
+        # (a relicensed repository often changes only the headers), the stricter of the two. Only ever narrows.
+        "rule_license": (stricter(_as_text(d.get("license")), spdx_header(doc.raw.decode("utf-8", errors="replace"))) or "")[:100] or None,
         "product": (normalized[0] or "")[:100] or None,
         "category": (normalized[1] or "")[:100] or None,
         "service": (normalized[2] or "")[:100] or None,
