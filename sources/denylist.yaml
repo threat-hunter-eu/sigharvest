@@ -69,3 +69,6 @@
 # Test fixtures and evaluation outputs only.
 - hecate-cti__hecate-core
 - timescale__rsigma-action
+# SigmaHQ copies remapped for Wazuh (rules/imported/ is its only rule folder): the Windows rules carry a false
+# `osquery` + `sysmon` logsource and ECS/Wazuh field names. Removed from extended.yaml on 2026-11-26.
+- threatclaw__threatclaw

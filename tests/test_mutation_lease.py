@@ -332,3 +332,94 @@ def test_leftover_lock_file_content_never_blocks(tmp_path, raw):
     with mutation_lease(ws):
         assert path.read_text().startswith(f"pid {os.getpid()} ")
     assert path.read_text() == ""
+
+
+def test_refused_command_keeps_the_lock_file_of_the_holder(tmp_path, monkeypatch):
+    """A refused writer on a folder that was not there when it started must not unlink the holder's lock file."""
+    import threading
+
+    import typer
+
+    import sigharvest.conversion_spills  # noqa: F401  (bind the real mutation_lease before patching)
+    import sigharvest.lock as lock
+    from sigharvest.cli.common import mutation_command
+
+    root = tmp_path / "new"
+    in_body, leave = threading.Event(), threading.Event()
+
+    @mutation_command(workspace_arg="path")
+    def init_like(path: str) -> None:
+        in_body.set()
+        leave.wait(10)
+
+    holder_thread = threading.Thread(target=lambda: init_like(str(root)))
+    real_lease = lock.mutation_lease
+
+    def late_lease(ws, *, timeout=0):  # the refused command sampled "not there" before the holder created it
+        if threading.current_thread() is threading.main_thread() and not holder_thread.is_alive():
+            holder_thread.start()
+            assert in_body.wait(10)
+        return real_lease(ws, timeout=timeout)
+
+    monkeypatch.setattr(lock, "mutation_lease", late_lease)
+    try:
+        with pytest.raises(typer.Exit) as refused:
+            init_like(str(root))
+        assert refused.value.exit_code == 2
+        assert lock_path(Workspace(root)).exists()
+        with pytest.raises(LockHeld):
+            UpdateLock(Workspace(root)).acquire()
+    finally:
+        leave.set()
+        holder_thread.join(10)
+
+
+def test_waiter_on_a_cleaned_up_lock_file_reopens_it(tmp_path, monkeypatch):
+    """A writer waiting on the lock of a folder whose failed command removes it locks the file that is there now."""
+    import threading
+    import time
+
+    import sigharvest.lock as lock
+    from sigharvest.cli.common import mutation_command
+
+    root = tmp_path / "new"
+    ws = Workspace(root)
+    waiting, release = threading.Event(), threading.Event()
+    real_try = lock._try_lock
+
+    def observed_try(fd, shared=False):
+        ok = real_try(fd, shared)
+        if not ok and threading.current_thread() is not threading.main_thread():
+            waiting.set()
+        return ok
+
+    monkeypatch.setattr(lock, "_try_lock", observed_try)
+
+    @mutation_command(workspace_arg="path")
+    def failing_init(path: str) -> None:
+        threading.Thread(target=waiter, daemon=True).start()
+        assert waiting.wait(10)
+        raise RuntimeError("bad pack")
+
+    got: list[UpdateLock] = []
+
+    def waiter() -> None:
+        w = UpdateLock(ws, timeout=10)
+        w.acquire()
+        got.append(w)
+        release.wait(10)
+        w.release()
+
+    with pytest.raises(RuntimeError, match="bad pack"):
+        failing_init(str(root))
+    deadline = time.monotonic() + 10
+    while not got and time.monotonic() < deadline:
+        time.sleep(0.01)
+    try:
+        assert got, "the waiter never acquired"
+        path = lock_path(ws)
+        assert os.fstat(got[0].fd).st_ino == os.stat(path).st_ino  # locked on the file at the path, not an unlinked one
+        with pytest.raises(LockHeld):
+            UpdateLock(ws).acquire()
+    finally:
+        release.set()

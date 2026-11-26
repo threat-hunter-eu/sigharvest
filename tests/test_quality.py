@@ -44,6 +44,46 @@ def test_informational_flags() -> None:
 
 
 @pytest.mark.parametrize(
+    "logsource",
+    [
+        {"category": "generic"},  # simulator markers, translation stubs
+        {"category": "test"},  # test fixtures in code
+        {"category": "Generic "},
+        {"category": "any", "product": None, "service": ""},
+        {"category": None, "product": None, "service": None},  # unfilled template
+        {"category": "", "product": ""},
+    ],
+)
+def test_placeholder_logsource_is_junk(logsource: dict[str, object]) -> None:
+    flags = classify(_rule(logsource=logsource), ["rules/a.yml"])
+    assert "placeholder_logsource" in flags and is_junk(flags)
+
+
+@pytest.mark.parametrize(
+    "logsource",
+    [
+        {"product": "windows", "category": "generic"},  # the product still routes it
+        {"service": "sysmon", "category": "test"},
+        {"category": "process_creation"},
+        {"category": "webserver"},
+        {"definition": "Requirements: audit policy X", "category": "generic"},
+        {"vendor": "microsoft"},  # another schema: reported by validation, not a placeholder
+        {"provider": "Microsoft-Windows-Kernel-Process", "event_name": "ProcessStart"},
+        {"category": None, "event_type": "process_spawn"},
+        {},
+    ],
+)
+def test_placeholder_logsource_not_flagged(logsource: dict[str, object]) -> None:
+    assert "placeholder_logsource" not in classify(_rule(logsource=logsource), ["rules/a.yml"])
+
+
+def test_placeholder_logsource_on_index_loader_strings() -> None:
+    # The index parses metadata with BaseLoader: every value is a string, an empty value is "".
+    assert "placeholder_logsource" in classify(_rule(logsource={"category": "generic", "product": ""}), [])
+    assert "placeholder_logsource" not in classify(_rule(logsource="generic"), [])
+
+
+@pytest.mark.parametrize(
     "source,flag",
     [({"service": service}, "ambiguous_logsource") for service in ("process", "registry_event", "firewall")]
     + [({"service": service}, "nonstandard_logsource") for service in ("bits", "vhd", "windows-defender")]

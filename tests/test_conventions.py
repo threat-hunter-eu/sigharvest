@@ -175,6 +175,67 @@ def test_token_is_required_on_every_request(client: TestClient) -> None:  # noqa
         assert guarded.get("/api/search", params={"q": "mimikatz"}, headers={"authorization": "Basic " + basic}).status_code == 200
 
 
+def test_token_auth_throttles_wrong_tokens_per_peer() -> None:
+    """After too many wrong tokens a peer is refused (429), the right token included, until the window passes."""
+    from fastapi.responses import PlainTextResponse
+
+    from sigharvest.web.security import TokenAuth
+
+    token, now = "t" * 20, [1000.0]
+    guarded = TokenAuth(PlainTextResponse("ok"), token=token, clock=lambda: now[0])
+    good, bad = {"authorization": "Bearer " + token}, {"authorization": "Bearer " + "u" * 20}
+    attacker = TestClient(guarded, base_url="http://127.0.0.1", client=("10.0.0.9", 5000))  # type: ignore[arg-type]
+    other = TestClient(guarded, base_url="http://127.0.0.1", client=("10.0.0.7", 5000))  # type: ignore[arg-type]
+    for _ in range(TokenAuth.MAX_FAILURES * 2):
+        assert attacker.get("/about").status_code == 401  # the browser's first, header-less request never counts
+    for _ in range(TokenAuth.MAX_FAILURES - 1):
+        assert attacker.get("/about", headers=bad).status_code == 401
+    assert attacker.get("/about", headers=good).status_code == 200  # a success does not reset the count
+    assert attacker.get("/about", headers=bad).status_code == 401
+    blocked = attacker.get("/api/search", headers=good)
+    assert blocked.status_code == 429 and blocked.json() == {"detail": "too many failed logins"}
+    assert 0 < int(blocked.headers["retry-after"]) <= TokenAuth.WINDOW_SECONDS
+    assert other.get("/about", headers=good).status_code == 200  # another address is not affected
+    now[0] += TokenAuth.WINDOW_SECONDS + 1
+    assert attacker.get("/about", headers=good).status_code == 200
+
+
+def test_peer_key_groups_ipv6_prefixes_and_mapped_addresses() -> None:
+    from sigharvest.web.security import peer_key
+
+    assert peer_key("10.0.0.9") == "10.0.0.9"
+    assert peer_key("::ffff:10.0.0.9") == "10.0.0.9"
+    assert peer_key("2001:db8::0") == peer_key("2001:db8::c7") == peer_key("2001:db8:0:0:ffff::1") == "2001:db8::/64"
+    assert peer_key("2001:db8:0:1::1") != peer_key("2001:db8::1")  # another /64 is another client
+    assert peer_key("fe80::1%eth0") == "fe80::/64"  # a zone id does not make a new client
+    assert peer_key("not-an-address") == "not-an-address"  # unix sockets and test clients keep their own key
+
+
+def test_token_auth_throttle_is_per_ipv6_prefix_and_shares_mapped_ipv4() -> None:
+    """One client rotating through its own /64 reaches the limit; `::ffff:a.b.c.d` shares the budget with `a.b.c.d`."""
+    from fastapi.responses import PlainTextResponse
+
+    from sigharvest.web.security import TokenAuth
+
+    token = "t" * 20
+    guarded = TokenAuth(PlainTextResponse("ok"), token=token, clock=lambda: 1000.0)
+    bad = {"authorization": "Bearer " + "u" * 20}
+
+    def peer(host: str) -> TestClient:
+        return TestClient(guarded, base_url="http://127.0.0.1", client=(host, 5000))  # type: ignore[arg-type]
+
+    for i in range(TokenAuth.MAX_FAILURES):
+        assert peer(f"2001:db8::{i:x}").get("/about", headers=bad).status_code == 401
+    blocked = peer("2001:db8::ffff").get("/about", headers={"authorization": "Bearer " + token})
+    assert blocked.status_code == 429
+    assert peer("2001:db8:0:1::1").get("/about", headers={"authorization": "Bearer " + token}).status_code == 200
+
+    for i in range(TokenAuth.MAX_FAILURES):
+        mapped = "::ffff:10.0.0.9" if i % 2 else "10.0.0.9"
+        assert peer(mapped).get("/about", headers=bad).status_code == 401
+    assert peer("10.0.0.9").get("/about", headers={"authorization": "Bearer " + token}).status_code == 429
+
+
 def test_unknown_pages_render_the_html_error_page(client: TestClient) -> None:  # noqa: F811
     page = client.get("/no-such-page")
     assert page.status_code == 404 and page.headers["content-type"].startswith("text/html") and "Not found" in page.text
