@@ -96,6 +96,49 @@ def narrows(rule_licence: str | None, source_licence: str | None) -> bool:
     return _RANK[licence_class(rule_licence)] > _RANK[licence_class(source_licence)]
 
 
+def _rank(licence: str | None) -> int:
+    return _RANK[licence_class(licence)]
+
+
+# One `SPDX-License-Identifier:` comment line (REUSE convention). Bounded and anchored: linear on hostile text.
+_SPDX_LINE = re.compile(r"^[ \t]*#[ \t]*SPDX-License-Identifier:[ \t]*([^\r\n#]{1,200})$", re.MULTILINE | re.IGNORECASE)
+SPDX_SCAN_BYTES = 8192  # headers sit at the top of a file; a rule body never needs a full scan
+
+
+def spdx_expression_licence(expression: str) -> str:
+    """The licence a reader may rely on for a simple SPDX expression.
+
+    "A OR B" lets the reader pick, so the least restrictive choice counts; "A AND B" binds both, so the most
+    restrictive one counts; "WITH exception" only adds permissions and is dropped. Parenthesised (nested)
+    expressions are kept whole, which classifies as restricted: conservative, never wider than stated."""
+    expr = expression.strip()
+    if "(" in expr or ")" in expr:
+        return expr
+    choices = []
+    for alternative in re.split(r"\s+OR\s+", expr, flags=re.IGNORECASE):
+        terms = [re.split(r"\s+WITH\s+", t, maxsplit=1, flags=re.IGNORECASE)[0].strip() for t in re.split(r"\s+AND\s+", alternative, flags=re.IGNORECASE)]
+        choices.append(max((t for t in terms if t), key=_rank, default=alternative.strip()))
+    return min(choices, key=_rank)
+
+
+def spdx_header(text: str) -> str | None:
+    """The licence in a document's `# SPDX-License-Identifier:` comment line, if it has one.
+
+    Only the first line counts (one header per file, REUSE). Like a rule's `license:` field this is the
+    publisher's own statement about the file; callers use it only to narrow the source licence (`narrows`)."""
+    m = _SPDX_LINE.search(text[:SPDX_SCAN_BYTES])
+    if not m or not m.group(1).strip():
+        return None
+    return spdx_expression_licence(m.group(1))[:100]
+
+
+def stricter(a: str | None, b: str | None) -> str | None:
+    """The more restrictive of two stated licences (None = not stated, ignored); ties keep `a`."""
+    if not a or not b:
+        return a or b
+    return b if _rank(b) > _rank(a) else a
+
+
 def shipped_licence(rule_licence: str | None, source_licence: str | None) -> str | None:
     """The licence to state for a document: its source's, or its own `license:` field when that is narrower."""
     return rule_licence if narrows(rule_licence, source_licence) else source_licence

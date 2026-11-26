@@ -9,6 +9,12 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ## [Unreleased]
 
+### Changed
+
+- A `# SPDX-License-Identifier:` header in a rule file now counts as the rule's own licence, like its `license:`
+  field (the stricter of the two wins). It can only narrow the source licence, never widen it, so a repository that
+  relicenses by editing file headers is caught at the next sync.
+
 ## [0.1.1] - 2026-11-23
 
 ### Security
