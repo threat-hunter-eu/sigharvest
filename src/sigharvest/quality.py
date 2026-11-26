@@ -10,6 +10,8 @@ Junk flags (hidden from search, export and check by default; `--include-junk` sh
 - autogen_stub: "auto-generated stub" placeholders;
 - template_title: unrendered templates in the title ($(field), {{var}}, <placeholder>);
 - match_all: every value is a bare wildcard, so the rule matches every event of its log source;
+- placeholder_logsource: the log source is only a placeholder (`category: generic` / `test`, or an unfilled
+  template), as in simulator markers and translation stubs: nothing routes it, it matches every event;
 - negation_only, short_keyword_wildcard, generic_field_wildcard, test_like_low_level: reviewable precision
   heuristics (quality_precision.py);
 - upstream_deprecated: SigmaHQ deprecated this rule id (or moved it to deprecated/), but this copy does not say so.
@@ -44,6 +46,7 @@ JUNK = (
             "upstream_deprecated",
             "autogen_template",
             "baseline_query",
+            "placeholder_logsource",
         }
     )
     | PRECISION_FLAGS
@@ -131,6 +134,8 @@ def classify(data: dict[str, Any], paths: list[str], upstream_deprecated: bool =
         flags.add("converted")
     if ls.get("product") and not ls.get("category") and not ls.get("service"):
         flags.add("broad_logsource")
+    if placeholder_logsource(raw_ls):
+        flags.add("placeholder_logsource")
     from sigharvest.logsource_inference import infer_windows_route, inference_note
 
     product, category, service = (str(ls.get(key) or "") for key in ("product", "category", "service"))
@@ -151,6 +156,26 @@ def classify(data: dict[str, Any], paths: list[str], upstream_deprecated: bool =
     if upstream_deprecated:
         flags.add("upstream_deprecated")
     return sorted(flags)
+
+
+def placeholder_logsource(logsource: Any) -> bool:
+    """True when the log source only says "no log source": no product or service, and the category is a placeholder.
+
+    Placeholder categories are the ones normalisation drops (generic, test, any, unknown...; normalize.py), or every
+    Sigma key present with an empty value (an unfilled template). Simulator markers, translation stubs and test
+    fixtures use these; no backend can route them, so the rule would match every event. A log source written in
+    another schema (vendor:, provider:, event_type:) is not a placeholder: validation reports it."""
+    from sigharvest.normalize import category
+
+    if not isinstance(logsource, dict) or not logsource:
+        return False
+    ls = {str(k).lower(): v for k, v in logsource.items()}
+    if any(str(ls.get(k) or "").strip() for k in ("product", "service", "definition")):
+        return False
+    raw_category = str(ls.get("category") or "").strip()
+    if raw_category:
+        return category(raw_category) is None
+    return set(ls) <= {"product", "category", "service", "definition"}
 
 
 def _template_title(title: str) -> bool:
