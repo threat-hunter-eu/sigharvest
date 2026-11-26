@@ -178,6 +178,39 @@ def test_completed_validation_still_requires_index_after_restart(corpus, monkeyp
         assert _index_needed(s, 0, False) == ""
 
 
+def test_index_never_publishes_validation_from_an_older_toolchain(corpus, monkeypatch):
+    """pySigma/schema upgrade, then an interrupted validate run: the old `ok` must not reach the index (release)."""
+    ws, factory, _ = corpus
+    monkeypatch.setattr(testing, "ProcessPoolExecutor", InlinePool)
+    monkeypatch.setattr(semantic, "ProcessPoolExecutor", InlinePool)
+    with factory() as s:
+        semantic.backfill(s)
+        testing.run_stage(ws, s, "validate")
+        rebuild(s)
+        before = {g.logic_hash: g.validation for g in s.scalars(select(LogicGroup))}
+        assert "ok" in before.values() or "warning" in before.values(), before
+        # The new run records its toolchain first and is interrupted before storing any result.
+        s.add(TestRun(stage="validate", params={"toolchain": "pysigma-upgraded"}))
+        s.commit()
+        rebuild(s)
+        after = {g.logic_hash: g.validation for g in s.scalars(select(LogicGroup))}
+        assert after.keys() == before.keys() and set(after.values()) == {None}, after
+        # Validating again under the newest toolchain restores the labels.
+        testing.run_stage(ws, s, "validate")
+        rebuild(s)
+        assert {g.logic_hash: g.validation for g in s.scalars(select(LogicGroup))} == before
+
+
+def test_unparseable_rule_is_never_validated_ok(corpus, monkeypatch):
+    ws, factory, _ = corpus
+    monkeypatch.setattr(testing, "ProcessPoolExecutor", InlinePool)
+    with factory() as s:
+        testing.run_stage(ws, s, "validate")
+        bad = s.scalars(select(RuleVersion).where(RuleVersion.raw == BAD)).one()
+        statuses = set(s.scalars(select(TestResult.status).where(TestResult.version_id == bad.id, TestResult.stage == "validate")))
+        assert statuses == {"error"}
+
+
 def test_same_toolchain_semantic_extension_still_requires_index(corpus, monkeypatch):
     _, factory, root = corpus
     monkeypatch.setattr(semantic, "ProcessPoolExecutor", InlinePool)
