@@ -397,11 +397,10 @@ class _Extras:
 
     @staticmethod
     def _shipped(credits: list[dict[str, Any]]) -> dict[str, str | None]:
-        """Source -> licence of the rules whose text a zip carries (DRL added when DRL-derived rules are in it)."""
-        shipped: dict[str, str | None] = {str(c["source"]): c["licence"] for c in credits}
-        if any(c.get("drl_origin") for c in credits):
-            shipped["rules derived from DRL rules"] = "DRL-1.1"
-        return shipped
+        """Source -> licences of the rules whose text a zip carries (DRL added when DRL-derived rules are in it)."""
+        from sigharvest.licence_texts import shipped_licences
+
+        return shipped_licences(credits)
 
     def licences_zip(self) -> None:
         """LICENSES.zip at the top of the release: the LICENSES/ folder of both zips together (release assets are flat)."""
@@ -409,9 +408,8 @@ class _Extras:
 
         from sigharvest.licence_texts import bundle
 
-        shipped: dict[str, str | None] = {}
-        for credits in self.credits.values():
-            shipped |= self._shipped(credits)
+        # One pass over both zips' credits: merging per-zip dicts would let the copyleft zip's licence replace the permissive one's.
+        shipped = self._shipped([c for credits in self.credits.values() for c in credits])
         with zipfile.ZipFile(self.out / "LICENSES.zip", "w", compression=zipfile.ZIP_DEFLATED) as zf:
             for name, data in bundle(self.ws, shipped, self.configs):
                 zf.writestr(zipfile.ZipInfo(name, ZIP_STAMP), data, compress_type=zipfile.ZIP_DEFLATED)
