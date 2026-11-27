@@ -59,7 +59,7 @@ sigharvest export lsass --product windows --licence-class permissive --format sp
 | `--include-deprecated` | also deprecated and unsupported rules (excluded by default) |
 | `--include-junk` | also test fixtures, synthetic and wrapped-query documents (excluded by default) |
 | `--rule-source NAME` | only rules carried by this source (keeps the canonical copy) |
-| `--licence-class CLASS` | only rules from sources of this licence class: `permissive`, `copyleft`, `restricted` or `none` (family and logic units) |
+| `--licence-class CLASS` | only rules whose exported copy has this licence class: `permissive`, `copyleft`, `restricted` or `none` (family and logic units). The written copy is the canonical one, so it must come from a source of the class and its own `license:` field must not be stricter; a rule whose only copy of the class is not canonical is left out. `search --licence-class` is wider: any copy in a source of the class |
 
 `--profile core|core+|core++|emerging-threats|all` selects like SigmaHQ's release packages, on every source
 ([docs/cli.md](cli.md#profiles-sigmahq-packages)): `sigharvest export --profile core --format zip --out core.zip`.

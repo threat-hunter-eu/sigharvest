@@ -853,6 +853,10 @@ class GroupFilters:
     status: str | None = None
     tag: str | None = None
     source: str | None = None  # comma-separated union, exact repository names
+    # The copy that is shipped (exports): canonical source among these names, and the canonical document's own
+    # `license:` field (lowercase) not among these. Set by cli.common.with_licence_class(shipped=True).
+    canonical_source: tuple[str, ...] | None = None
+    exclude_rule_licence: tuple[str, ...] | None = None
     exclude_source: str | None = None
     source_only: bool = False
     datasource: str | None = None
@@ -963,6 +967,16 @@ def _base(
         else:
             add("source", "EXISTS (SELECT 1 FROM json_each(g.sources) r JOIN json_each(:source) selected ON r.value = selected.value)")
             params["source"] = json.dumps([v.strip() for v in f.source.split(",") if v.strip()])
+    if f.canonical_source is not None:
+        add("canonical_source", "g.canonical_source IN (SELECT value FROM json_each(:canonical_source))")
+        params["canonical_source"] = json.dumps(list(f.canonical_source))
+    if f.exclude_rule_licence:
+        add(
+            "exclude_rule_licence",
+            "lower(coalesce((SELECT v.rule_license FROM rule_versions v WHERE v.id = g.canonical_version_id), '')) "
+            "NOT IN (SELECT value FROM json_each(:exclude_rule_licence))",
+        )
+        params["exclude_rule_licence"] = json.dumps(list(f.exclude_rule_licence))
     if f.source_only:
         add("source_only", "g.n_sources = 1")
     if f.exclude_source:

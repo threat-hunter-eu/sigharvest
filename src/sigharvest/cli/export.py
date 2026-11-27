@@ -139,7 +139,7 @@ def export(
             license=licence,
         )
         if unit != "all":
-            gf = with_licence_class(s, gf, licence_class)
+            gf = with_licence_class(s, gf, licence_class, shipped=True)
         if unit == "all":
             from sigharvest.export_selection import select_documents, validation_schemas
             from sigharvest.query import export_backend, export_sigma

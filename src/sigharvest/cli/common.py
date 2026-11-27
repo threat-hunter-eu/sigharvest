@@ -109,9 +109,13 @@ def licence_class_option() -> Any:
     return typer.Option(None, "--licence-class", help=LICENCE_CLASS_HELP)
 
 
-def with_licence_class(s: Session, f: GroupFilters, wanted: str | None) -> GroupFilters:
+def with_licence_class(s: Session, f: GroupFilters, wanted: str | None, *, shipped: bool = False) -> GroupFilters:
     """Narrow f to rules with a copy in a source of this licence class (the web UI's `licence` filter), combined
-    with any source filter. --licence only matches the rare `license:` field written in a rule document."""
+    with any source filter. --licence only matches the rare `license:` field written in a rule document.
+
+    shipped=True (export): the copy that is written must itself have this licence class, so the canonical copy
+    must come from a source of the class and its own `license:` field must not narrow it to a stricter class
+    (export.effective_licence). A rule whose only copy of the class is not canonical is left out."""
     if not wanted:
         return f
     cls = wanted.strip().lower()
@@ -124,7 +128,25 @@ def with_licence_class(s: Session, f: GroupFilters, wanted: str | None) -> Group
     names = set(sources_by_class(s).get(cls, []))
     if f.source:
         names &= {v.strip() for v in f.source.split(",") if v.strip()}
-    return replace(f, source=",".join(sorted(names)) or "\x00none")
+    out = replace(f, source=",".join(sorted(names)) or "\x00none")
+    if not shipped:
+        return out
+    from sqlalchemy import text
+
+    from sigharvest.licensing import narrows
+
+    own = s.execute(
+        text(
+            "SELECT DISTINCT v.rule_license FROM logic_groups g JOIN rule_versions v ON v.id = g.canonical_version_id WHERE coalesce(v.rule_license, '') != ''"
+        )
+    ).scalars()
+    stricter = {str(lic).lower() for lic in own if narrows(str(lic), _class_example(cls))}
+    return replace(out, canonical_source=tuple(sorted(names)), exclude_rule_licence=tuple(sorted(stricter)) or None)
+
+
+def _class_example(cls: str) -> str | None:
+    """A licence id of this class, to compare a rule's own `license:` against with licensing.narrows."""
+    return {"permissive": "MIT", "copyleft": "GPL-3.0-only", "restricted": "LicenseRef-restricted", "none": None}[cls]
 
 
 @contextmanager
