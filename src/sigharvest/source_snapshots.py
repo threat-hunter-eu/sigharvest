@@ -41,10 +41,12 @@ def origin_fingerprint(cfg: SourceConfig) -> str:
 # Modules whose code decides the stored rows (rule_versions, occurrences, quarantine)
 # for given file bytes: parsing and Sigma detection (documents.py, always added by
 # implementation()), identity hashes, logsource normalization, the ingest writes,
-# quarantine records and path selection. Fetch, snapshot I/O, locks, progress and the
-# sync orchestration only decide which bytes are fetched and when; those bytes are
-# content-addressed, so a changed adapter output reaches ingestion as changed files.
-INGEST_MODULES = ("ingest.py", "identity.py", "normalize.py", "quarantine.py", "source_selection.py")
+# quarantine records, path selection and licensing (ingest stores `rule_license` from the
+# `license:` field and the SPDX header, via licensing.spdx_header/stricter). Fetch, snapshot
+# I/O, locks, progress and the sync orchestration only decide which bytes are fetched and
+# when; those bytes are content-addressed, so a changed adapter output reaches ingestion as
+# changed files.
+INGEST_MODULES = ("ingest.py", "identity.py", "licensing.py", "normalize.py", "quarantine.py", "source_selection.py")
 # Bump when plumbing changes which bytes reach ingestion for an unchanged upstream
 # (for example what snapshot capture retains); that forces one full re-ingest.
 INGEST_POLICY_REVISION = 1
