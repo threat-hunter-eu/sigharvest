@@ -47,7 +47,8 @@ OUT/rules/index.html            search page (the 30 best rules are listed in the
 OUT/rules/rule.html?l=<lid>     any rule, rendered in the browser from its detail shard
 OUT/rules/r/<lid>.html          static rule pages (collections + best family rules), with SEO meta
 OUT/rules/c/<slug>.html         collection pages
-OUT/rules/attribution.html      sources and licences (+ ATTRIBUTION.md), linked from every footer
+OUT/rules/attribution.html      sources and licences (+ ATTRIBUTION.md), linked from every footer; per-source quality
+                                (canonical rules, median score, % valid, % field-mapped conversion per backend)
 OUT/rules/sitemap.xml           every generated HTML page
 OUT/rules/changes.json          every new, changed and removed rule (the release's changes.json, or the last update's report)
 OUT/rules/feed.xml              the same as an Atom feed (linked from every page head; the first 200 entries, full counts in its subtitle)

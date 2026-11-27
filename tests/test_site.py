@@ -19,7 +19,7 @@ from sigharvest import collections as col
 from sigharvest.models import LogicGroup
 from sigharvest.release import build as build_release
 from sigharvest.site import SiteError, build_site, collections_snapshot, site_command, tokens
-from sigharvest.site.build import HERE, licence_links, safe_url, shard_key
+from sigharvest.site.build import HERE, licence_links, safe_url, shard_key, source_quality
 from tests.helpers import reseal, set_licence
 from tests.test_collections import _setup
 
@@ -367,6 +367,40 @@ def test_attack_sidecar_valid_projection_and_duplicate_key_rejection(tmp_path):
     path.write_text(payload.replace('"id": "T1003"', '"id": "T1003", "id": "T1003"'))
     with pytest.raises(SiteError):
         _load_attack(path)
+
+
+def test_source_quality_counts_each_rule_once_under_its_canonical_source() -> None:
+    def row(src: str, score: float, validation: str, **conv: str) -> dict[str, object]:
+        return {"canonical": {"source": src}, "score": score, "validation": validation, "conversion": {k: {"status": v} for k, v in conv.items()}}
+
+    rows = [
+        row("a", 80, "ok", splunk="ok", sqlite="raw"),
+        row("a", 40, "warning", splunk="error", sqlite="ok"),
+        row("a", 60, "ok", splunk="ok"),
+        row("b", 10, "error"),
+        {"score": 99, "validation": "ok"},  # no canonical copy: not attributed to any source
+    ]
+    backends, q = source_quality(rows)
+    assert backends == ["splunk", "sqlite"]
+    assert q["a"] == {"n": 3, "score": 60, "valid": 66, "mapped": {"splunk": 66, "sqlite": 50}}
+    assert q["b"] == {"n": 1, "score": 10, "valid": 0, "mapped": {"splunk": None, "sqlite": None}}
+    assert source_quality([row("c", 1, "ok"), row("c", 4, "ok")])[1]["c"]["score"] == 2  # even count: mean of the middle two, rounded
+
+
+def test_attribution_page_shows_source_quality(tmp_path: Path) -> None:
+    rel, _ws = _release(tmp_path, "MIT")
+    rows = _rows(rel)
+    for r in rows:
+        r["conversion"] = {"splunk": {"status": "ok"}}
+    _write_rows(rel, rows)
+    out = tmp_path / "site"
+    build_site(rel, out, min_score=0)
+    page = (out / "rules" / "attribution.html").read_text()
+    assert '<th scope="col" class="opt">canonical</th>' in page and '<th scope="col" class="opt">splunk</th>' in page
+    assert '<td class="opt mono">100%</td>' in page
+    parser = _Tags()
+    parser.feed(page)
+    assert parser.bad == []
 
 
 def test_licences_link_to_their_text_and_footer_names_corrections(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

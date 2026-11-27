@@ -7,8 +7,8 @@ workspace (a release is built from its database, read-only, into a temporary fol
     OUT/<base_url>/rule.html?l=<lid>     every rule, rendered in the browser from its detail shard (rule.js)
     OUT/<base_url>/r/<lid>.html          static, indexable pages for a curated subset (collections + top families)
     OUT/<base_url>/c/<slug>.html         collection pages
-    OUT/<base_url>/attribution.html      sources and licences (+ ATTRIBUTION.md), linked from every footer
-    OUT/<base_url>/sitemap.xml           the generated HTML pages
+    OUT/<base_url>/attribution.html      sources and licences (+ ATTRIBUTION.md, per-source quality), linked from every footer
+    OUT/<base_url>/sitemap.xml          the generated HTML pages
     OUT/<base_url>/data/meta.json        counts, dictionaries, shard layout, score cut-offs
     OUT/<base_url>/data/t/<xx>.json      inverted index: token -> delta-encoded rule ranks, by the token's first 2 chars
     OUT/<base_url>/data/f/<facet>.json   facet postings (level, product, text available, validation)
@@ -411,6 +411,44 @@ def _conversion_summary(conv: Any) -> dict[str, Any]:
     return {"tested": True, "counts": dict(Counter(v for _k, v in targets)), "targets": targets}
 
 
+def source_quality(rows: list[dict[str, Any]]) -> tuple[list[str], dict[str, dict[str, Any]]]:
+    """Quality of each source, measured on the rules whose canonical copy it holds (each rule counted once): median
+    score, share that passes validation with no warning, share converted with field mappings (`ok`) per backend.
+    Returns the backends seen in the rows and, per source name, {"n", "score", "valid", "mapped": {backend: pct}}."""
+    by_source: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    backends: set[str] = set()
+    for r in rows:
+        name = (r.get("canonical") or {}).get("source")
+        if name:
+            by_source[str(name)].append(r)
+        conv = r.get("conversion")
+        if isinstance(conv, dict):
+            backends.update(str(k) for k in conv)
+    order = sorted(backends)
+
+    def pct(k: int, n: int) -> int:
+        return math.floor(100 * k / n) if k < n else 100
+
+    out: dict[str, dict[str, Any]] = {}
+    for name, rs in by_source.items():
+        n = len(rs)
+        scores = sorted(float(r.get("score") or 0) for r in rs)
+        mid = n // 2
+        median = scores[mid] if n % 2 else (scores[mid - 1] + scores[mid]) / 2
+        mapped = {}
+        for b in order:
+            tested = [c[b] for r in rs if isinstance(c := r.get("conversion"), dict) and b in c]
+            ok = sum(1 for v in tested if (v.get("status") if isinstance(v, dict) else v) == "ok")
+            mapped[b] = pct(ok, len(tested)) if tested else None
+        out[name] = {
+            "n": n,
+            "score": round(median),
+            "valid": pct(sum(1 for r in rs if r.get("validation") == "ok"), n),
+            "mapped": mapped,
+        }
+    return order, out
+
+
 def licence_links(expression: str | None) -> list[dict[str, str | None]]:
     """Each licence id of a stated licence with the address of its text (DRL item 3, CC-BY §3(a)(1)(C): the licence
     text or its URI travels with the rule); url None when there is no public text to point to (LicenseRef-*, words)."""
@@ -805,11 +843,19 @@ def _build_site(
     page("rule.html", "dynamic.html")
     # GitHub Pages (and Workers static assets) serve 404.html for unknown paths; links are absolute, so it works at any depth.
     page("404.html", "404.html")
+    backends, quality = source_quality(rows)
     sources = [
-        {"name": x.get("name"), "url": safe_url(x.get("url")), "licence": x.get("licence"), "rules": x.get("rules"), "commit": x.get("commit")}
+        {
+            "name": x.get("name"),
+            "url": safe_url(x.get("url")),
+            "licence": x.get("licence"),
+            "rules": x.get("rules"),
+            "commit": x.get("commit"),
+            "q": quality.get(str(x.get("name"))),
+        }
         for x in src.manifest.get("sources", [])
     ]
-    page("attribution.html", "attribution.html", sources=sources, classes=meta["redistributed_classes"])
+    page("attribution.html", "attribution.html", sources=sources, classes=meta["redistributed_classes"], backends=backends)
     w.text("ATTRIBUTION.md", _attribution_md(src.manifest))
     w.text(".well-known/security.txt", project.security_txt(datetime.fromisoformat(built), f"{site_url}{base_url}.well-known/security.txt"))
     if src.notice is not None:

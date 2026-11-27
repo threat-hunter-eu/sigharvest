@@ -19,6 +19,9 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 - New junk flag `placeholder_logsource` for rules whose log source is only a placeholder (`category: generic`, `test`,
   `any` and the like, with no product, service or definition, or an unfilled template). No backend can route them, so
   they would match every event; they are hidden by default like other junk.
+- The attribution page of the static site (`sigharvest site build`) shows per-source quality, measured on the rules
+  whose canonical copy each source holds: their number, median score, share that validates without a warning and
+  share converted with field mappings per backend.
 
 ### Changed
 
