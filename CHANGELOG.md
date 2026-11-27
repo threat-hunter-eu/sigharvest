@@ -40,6 +40,11 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- `export --licence-class` checked that a rule had a copy in a source of that class, but wrote the canonical copy,
+  which can come from another source: on the 26.11 corpus, 687 of 15,807 Windows rules exported with
+  `--licence-class permissive` were copyleft, restricted or had no licence. The class is now checked on the copy that is
+  written (its source and its own `license:` field); a rule whose only copy of the class is not canonical is left out.
+  `search --licence-class` and the web filter keep the wider "any copy" meaning.
 - The web UI's token login (`serve --token-env`) had no limit on wrong guesses; an address that sends 20 wrong tokens
   within a minute now gets 429 until the minute has passed. An IPv6 /64 counts as one address, and an IPv4-mapped IPv6
   address counts as its IPv4 address. (thanks @elhoim)

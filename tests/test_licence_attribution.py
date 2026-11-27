@@ -311,3 +311,51 @@ def test_cli_licence_class_filter_matches_the_web_filter(tmp_path: Path, monkeyp
     assert [json.loads(line)["title"] for line in out.read_text(encoding="utf-8").splitlines()] == ["Copyleft Rule"]
     refused = runner.invoke(app, ["export", "--licence-class", "copyleft", "--unit", "all", "--out", str(tmp_path / "x")])
     assert refused.exit_code == 2
+
+
+def test_export_licence_class_checks_the_shipped_copy(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """export --licence-class writes the canonical copy, so its class is the shipped licence: a rule that also
+    sits in a permissive source but whose canonical copy is copyleft, or whose own `license:` is stricter, is not
+    exported as permissive. search keeps the wider "any copy" meaning of the web filter."""
+    from typer.testing import CliRunner
+
+    from sigharvest.cli import app
+
+    shared = _rule("Shared Rule", "3d4e5f60-7182-493a-acbd-2e3f4a5b6c7d", "gamma")
+    mit = _repo(
+        tmp_path / "mit",
+        {
+            "s.yml": shared,
+            "own.yml": _rule("Own Restricted", "4e5f6071-8293-4a4b-bdce-3f4a5b6c7d8e", "delta", "license: LicenseRef-NoShare\n"),
+            "p.yml": _rule("Plain Permissive", "5f607182-93a4-4b5c-8edf-4a5b6c7d8e9f", "epsilon"),
+        },
+    )
+    gpl = _repo(tmp_path / "gpl", {"s.yml": shared})
+    ws, S = _workspace(
+        tmp_path,
+        [
+            SourceConfig(name="gpl", url=str(gpl), licence="GPL-3.0-only", priority=1, redistributable=True),
+            SourceConfig(name="mit", url=str(mit), licence="MIT", priority=50, redistributable=True),
+        ],
+    )
+    with S() as s:
+        assert s.scalar(select(LogicGroup.canonical_source).where(LogicGroup.title == "Shared Rule")) == "gpl"
+    monkeypatch.chdir(ws.root)
+    runner = CliRunner()
+    found = runner.invoke(app, ["search", "--json", "--licence-class", "permissive"])
+    assert found.exit_code == 0, found.output
+    assert {r["title"] for r in json.loads(found.output)["results"]} == {"Shared Rule", "Own Restricted", "Plain Permissive"}
+
+    def exported(cls: str) -> list[tuple[str, str]]:
+        out = tmp_path / f"{cls}.jsonl"
+        result = runner.invoke(app, ["export", "--licence-class", cls, "--unit", "logic", "--format", "jsonl", "--out", str(out)])
+        assert result.exit_code in (0, 1), result.output
+        if not out.exists():
+            return []
+        rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+        return sorted((r["title"], r["licence_class"]) for r in rows)
+
+    assert exported("permissive") == [("Plain Permissive", "permissive")]
+    assert exported("copyleft") == [("Shared Rule", "copyleft")]
+    # Conservative: a rule narrowed by its own `license:` is only matched by its source's class, and dropped there.
+    assert exported("restricted") == []
