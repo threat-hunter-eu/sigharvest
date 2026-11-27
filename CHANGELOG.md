@@ -42,6 +42,9 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 
 ### Fixed
 
+- A change to `licensing.py` now forces a full re-ingest, like other code that decides stored rows: since the
+  SPDX header is read at ingest, it decides each version's stored `rule_license`, but editing it alone left existing
+  rows with the old reading. Upgrading re-ingests every source once.
 - `export --licence-class` checked that a rule had a copy in a source of that class, but wrote the canonical copy,
   which can come from another source: on the 26.11 corpus, 687 of 15,807 Windows rules exported with
   `--licence-class permissive` were copyleft, restricted or had no licence. The class is now checked on the copy that is
