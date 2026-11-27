@@ -48,6 +48,8 @@ def fingerprint() -> str:
             "quality_precision.py",
             "quality_unused.py",
             "quality_quotes.py",
+            "quality_strength.py",
+            "quality_fields.py",
             "normalize.py",
             "datasources.py",
             "source_overlap.py",

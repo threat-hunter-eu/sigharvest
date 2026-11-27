@@ -1,8 +1,11 @@
 """Field names from another schema on a Windows rule: foreign_field_names (quality_fields.py)."""
 
+from pathlib import Path
+
 import pytest
 import yaml
 
+import sigharvest
 from sigharvest.quality import classify, is_junk
 from sigharvest.quality_fields import detection_fields, field_flags, field_penalty
 
@@ -55,6 +58,21 @@ def test_classify_adds_an_informational_flag() -> None:
     flags = classify(_rule(FOREIGN["ECS names"]), ["rules/a.yml"])
     assert "foreign_field_names" in flags
     assert not is_junk(["foreign_field_names"])
+
+
+QUALITY_MODULES = sorted(p.name for p in (Path(sigharvest.__file__).parent).glob("quality*.py"))
+
+
+@pytest.mark.parametrize("module", QUALITY_MODULES)
+def test_every_quality_module_invalidates_the_index(module: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    # quality flags and score penalties are computed at index time: a change in any of these
+    # modules must rebuild the index, not only reach new or changed rules
+    from sigharvest import fingerprints, index_delta
+
+    before = index_delta.fingerprint()
+    original = fingerprints.source_digest
+    monkeypatch.setattr(fingerprints, "source_digest", lambda name: "changed" if name == module else original(name))
+    assert index_delta.fingerprint() != before
 
 
 def test_penalty_and_unreadable_input() -> None:
