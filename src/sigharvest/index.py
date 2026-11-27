@@ -14,6 +14,7 @@ Score (0-100, higher is better), used to rank results that match equally well:
   freshness        5  modified/date within 2 years = 5, within 5 years = 3, older or unknown = 1
   junk           -20  synthetic, test fixture, foreign query, template, match-all, deprecated upstream (quality.py)
   weak values    -15  weak_detection / -5 weak_branch: the condition can be met by weak values (quality_strength.py)
+  field names    -10  foreign_field_names: a Windows rule with dotted names from another schema (quality_fields.py)
 The result is clamped to 0-100.
 """
 
@@ -490,6 +491,7 @@ def _write_groups(
     attack_context: AttackScoreContext,
 ) -> None:
     from sigharvest.quality import is_junk
+    from sigharvest.quality_fields import field_penalty
     from sigharvest.quality_strength import strength_penalty
     from sigharvest.title_relevance import indexed_title
 
@@ -576,7 +578,8 @@ def _write_groups(
                         0.0,
                         score(v, validation.get(v.id), len(conv), applicable.get(v.id, 0), n_indep, score_description, attack_context=attack_context)
                         - (20.0 if junk else 0.0)
-                        - strength_penalty(qflags),
+                        - strength_penalty(qflags)
+                        - field_penalty(qflags),
                     ),
                 ),
                 "quality_flags": qflags,

@@ -24,6 +24,10 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
   share converted with field mappings per backend.
 - Python 3.14 is supported and tested in CI (full suite, `[convert]`). Python 3.15 is not yet: pySigma 2 depends on
   `google-re2`, which has no 3.15 wheel, so installing needs a C++ toolchain and abseil.
+- New informational quality flag `foreign_field_names` (score -10) for Windows rules whose detection names fields with
+  another schema's prefix (`process.command_line`, `data.Image`, `winlog.event_data.CommandLine`). The Sigma Windows
+  pipelines map only flat names, so the converted query looks for a field normalised events do not have. Such rules
+  stay visible; find them with `sigharvest search --flag foreign_field_names`.
 
 ### Changed
 
@@ -45,6 +49,8 @@ Rule packs are versioned separately by date (`rules-YYYY-MM-DD`); their changes 
 - A change to `licensing.py` now forces a full re-ingest, like other code that decides stored rows: since the
   SPDX header is read at ingest, it decides each version's stored `rule_license`, but editing it alone left existing
   rows with the old reading. Upgrading re-ingests every source once.
+- A change to `quality_strength.py` (the weak-value flags) now rebuilds the index, like the other quality modules;
+  before, existing rules kept their old flags and score until they changed.
 - `export --licence-class` checked that a rule had a copy in a source of that class, but wrote the canonical copy,
   which can come from another source: on the 26.11 corpus, 687 of 15,807 Windows rules exported with
   `--licence-class permissive` were copyleft, restricted or had no licence. The class is now checked on the copy that is

@@ -134,7 +134,10 @@ Many repositories carry documents that look like Sigma but are not useful rules.
 | placeholder_logsource | the log source is only a placeholder (`category: generic` / `test`, an unfilled template): simulator markers, translation stubs |
 
 Informational flags (not hidden): `ioc_list`, `converted`, `broad_logsource`, `unused_selection`,
-`unused_filter` and logsource spelling flags. Filter with `sigharvest search --flag NAME`.
+`unused_filter`, `foreign_field_names` and logsource spelling flags. Filter with `sigharvest search --flag NAME`.
+`foreign_field_names` marks a Windows rule with dotted field names (`process.command_line`, `data.Image`): they come
+from one SIEM's stored schema, the Sigma Windows pipelines do not map them, and the converted query never matches
+normalised events; such a rule also scores lower.
 
 ## Collections
 
