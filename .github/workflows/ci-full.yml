@@ -1,4 +1,4 @@
-# The expensive checks ci.yml leaves out: Python 3.13, pySigma 1 ([convert-legacy]), the phone-width layout in a
+# The expensive checks ci.yml leaves out: Python 3.13 and 3.14, pySigma 1 ([convert-legacy]), the phone-width layout in a
 # real browser, Windows (billed at twice the Linux rate) and the acceptance matrix. They run on pull requests to main
 # (not for docs-only changes: ci-docs.yml covers those), daily when the repository variable
 # SIGHARVEST_FULL_CI_ENABLED is `true` (off by default), and on demand. docs/automation.md#what-runs-when.
@@ -34,6 +34,10 @@ jobs:
         include:
           # Python 3.12 with [convert] runs on every push (ci.yml).
           - python: '3.13'
+            extra: convert
+          # The newest CPython. 3.15 waits for a google-re2 wheel (pySigma 2 needs it; the sdist needs a C++ toolchain
+          # and abseil).
+          - python: '3.14'
             extra: convert
           # pySigma 1 with all seven backends: the only job that runs the Elastic, OpenSearch and MDE tests
           # (marked @pytest.mark.backend; skipped on [convert], which is pySigma 2).
