@@ -45,7 +45,8 @@ def convert_loki(raw: str, fast: bool) -> conversion.Conversion:
 @pytest.mark.backend("loki")
 @pytest.mark.parametrize(
     ("values", "fields", "logsource"),
-    [(12, 100, "{category: [endpoint, network]}"), (10, 80, "{product: windows, category: image_load}"), (3, 2, "{product: linux}")],
+    # Windows case: service, not a category, so the synthetic FieldNN names are not rejected by the Sysmon field table.
+    [(12, 100, "{category: [endpoint, network]}"), (10, 80, "{product: windows, service: sysmon}"), (3, 2, "{product: linux}")],
 )
 def test_loki_partitions_are_identical_to_upstream(values: int, fields: int, logsource: str) -> None:
     raw = keyword_rule(values, logsource=logsource, fields=fields)

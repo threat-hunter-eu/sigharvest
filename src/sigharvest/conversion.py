@@ -103,7 +103,7 @@ ELASTIC = ("lucene", "esql", "opensearch")
 APPLICABLE = ("ok", "raw", "partial", "warning", "error", "timeout", "resource_failure")
 # Bump when the selection or classification logic changes: stored results with another fingerprint are re-tested.
 # (Not the same thing as identity.LOGIC_VERSION, which versions the logic hash.)
-SELECTION_VERSION = 4  # source capabilities, audit/ECS corrections and per-source results
+SELECTION_VERSION = 5  # Sysmon fields checked for every Sysmon category (datasources.SYSMON_FIELDS)
 STATE_VERSION = 2  # owned graph restored from a snapshot with unused memo writes removed
 
 WINDOWS_PS_CATEGORIES = {"ps_module", "ps_script", "ps_classic_start", "ps_classic_provider_start", "ps_classic_script"}
@@ -542,22 +542,59 @@ def _logsource(rule: Any) -> tuple[str | None, str | None, str | None]:
 
 
 def _fields(detections: Any) -> set[str]:
+    return set().union(*(_detection_fields(det) for det in detections.detections.values()))
+
+
+def _detection_fields(detection: Any, *, presence_only: bool = False) -> set[str]:
+    """Field names one detection tests (and field references). `presence_only`: only the fields tested for
+    null or existence, whose result inverts when the field is absent from the event."""
+    from sigma.types import SigmaExists, SigmaNull
+
     out: set[str] = set()
 
     def walk(item: Any) -> None:
         for sub in getattr(item, "detection_items", []) or []:
             walk(sub)
         name = getattr(item, "field", None)
-        if isinstance(name, str):
+        values = getattr(item, "value", []) or []
+        if isinstance(name, str) and (not presence_only or any(isinstance(v, (SigmaNull, SigmaExists)) for v in values)):
             out.add(name)
-        for value in getattr(item, "value", []) or []:
+        for value in values:
             reference = getattr(value, "field", None)
             if isinstance(reference, str):
                 out.add(reference)
 
-    for det in detections.detections.values():
-        walk(det)
+    walk(detection)
     return out
+
+
+def _negated_only_fields(detections: Any) -> set[str]:
+    """Fields tested only in detections the condition negates (`not filter_*`). If such a field is absent from the
+    event, the filter excludes nothing: the query matches more, never less. Null/exists tests are not counted (on an
+    absent field they match, so the negated filter would exclude every event). Unparsable conditions: empty set."""
+    from sigma.conditions import ConditionIdentifier, ConditionItem, ConditionNOT, ConditionSelector
+
+    positive: set[str] = set()
+    negated: set[str] = set()
+
+    def walk(node: Any, negate: bool) -> None:
+        if isinstance(node, ConditionSelector):
+            for ident in node.resolve_referenced_detections(detections):
+                walk(ident, negate)
+        elif isinstance(node, ConditionIdentifier):
+            (negated if negate else positive).add(node.identifier)
+        elif isinstance(node, ConditionItem):
+            for arg in node.args:
+                walk(arg, not negate if isinstance(node, ConditionNOT) else negate)
+
+    try:
+        for condition in detections.parsed_condition:
+            walk(condition.parse(postprocess=False), False)
+        dets = detections.detections
+        tested = set().union(*(_detection_fields(dets[n]) for n in positive), *(_detection_fields(dets[n], presence_only=True) for n in negated))
+        return set().union(*(_detection_fields(dets[n]) for n in negated)) - tested
+    except Exception:  # noqa: BLE001 - conversion reports the condition error itself
+        return set()
 
 
 _KQL_STRING = re.compile(r'@?"(?:[^"\\]|\\.)*"|@?\'(?:[^\'\\]|\\.)*\'')
@@ -654,29 +691,36 @@ def _run(target: str, p: Plan, coll: Any, sub_rules: list[Any], category: str | 
 
 def source_context(raw: str, target: str, kind: str = "rule", siblings: Sequence[str] = ()) -> tuple[list[str], str | None, set[str]]:
     """Select from the parsed logsource; tolerate invalid metadata just like conversion."""
+    available, category, fields, _negated = _source_context(raw, target, kind, siblings)
+    return available, category, fields
+
+
+def _source_context(raw: str, target: str, kind: str, siblings: Sequence[str]) -> tuple[list[str], str | None, set[str], set[str]]:
+    """source_context() plus the fields tested only in negated filters (single rules only)."""
     from sigharvest.datasources import applicable
 
     try:
         if kind == "rule":
             coll, errors, raised = _parse_or_errors(raw)
             if raised:
-                return ["default"], None, set()
+                return ["default"], None, set(), set()
             if errors:
                 coll = parse(_detection_only(raw))
         else:
             coll = parse("\n---\n".join([raw, *siblings]))
         rules = [r for r in coll.rules if hasattr(r, "logsource")]
         if not rules:
-            return ["default"], None, set()
+            return ["default"], None, set(), set()
         product, category, service = _logsource(rules[0])
         available = applicable(target, product, category, service)
         fields = set().union(*(_fields(r.detection) for r in rules))
         # A correlation needs the same source to provide every referenced event.
         for r in rules[1:]:
             available = [s for s in available if s in applicable(target, *_logsource(r))]
-        return available or ["default"], category, fields
+        negated = _negated_only_fields(rules[0].detection) if len(rules) == 1 else set()
+        return available or ["default"], category, fields, negated
     except Exception:  # noqa: BLE001 - the converter returns the actual parse diagnostic
-        return ["default"], None, set()
+        return ["default"], None, set(), set()
 
 
 class SourceTimeout(BaseException):
@@ -765,11 +809,11 @@ def convert(
             raise ValueError("--variant windows-audit is an alias for --source security")
         sources = ["security"]
     start = time.perf_counter()
-    available, category, fields = source_context(raw, target, kind, siblings)
+    available, category, fields, negated_only = _source_context(raw, target, kind, siblings)
     results = []
     for source in select_sources(available, sources):
         v = "windows-audit" if source == "security" and category in SECURITY_CATEGORIES else None
-        missing, notes = limitations(source, category, fields, target)
+        missing, notes = limitations(source, category, fields, target, negated_only=negated_only)
         if source not in available:
             r = Conversion(target, "unsupported", reason=f"{source} is not applicable to this backend and log source")
         elif kind == "correlation" and source == "security" and category in ("process_creation", "registry_set", "registry_add", "registry_event"):
