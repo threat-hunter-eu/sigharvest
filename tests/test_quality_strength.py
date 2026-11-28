@@ -4,7 +4,7 @@ import pytest
 import yaml
 
 from sigharvest.quality import classify, is_junk
-from sigharvest.quality_strength import strength_flags, strength_penalty, value_is_weak
+from sigharvest.quality_strength import keyword_is_short, strength_flags, strength_penalty, value_is_weak
 
 _LOADER = getattr(yaml, "CBaseLoader", yaml.BaseLoader)  # the index reads rules with BaseLoader
 
@@ -60,6 +60,36 @@ PATTERNS = {
         "  keywords: ['ab', 'mimikatz']\n  condition: keywords",
         "  keywords: ['sekurlsa', 'mimikatz']\n  condition: keywords",
         ["weak_branch"],
+    ),
+    "short keywords only": (  # leetspeak variants of a short word, searched in the whole event
+        "  keywords: ['70931', '7o931', '$lot', '5107']\n  condition: keywords",
+        "  keywords: ['70931', 'judi togel online', '5107']\n  condition: keywords",
+        ["weak_detection", "weak_high_severity"],
+    ),
+    "longer keywords that contain a short one": (  # `709311` adds nothing next to `70931`
+        "  keywords: ['70931', '709311', '7o931', '7o9311']\n  condition: keywords",
+        "  keywords: ['$u174n', '$u174nn', '5u174n']\n  condition: keywords",
+        ["weak_detection", "weak_high_severity"],
+    ),
+    "one short keyword": (
+        "  keywords: '*cq9*'\n  condition: keywords",
+        "  keywords: '*bola168*'\n  condition: keywords",
+        ["weak_detection", "weak_high_severity"],
+    ),
+    "short keyword branch": (
+        "  sel: {cs-uri-query|contains: 'slot-gacor'}\n  keywords: ['5107', '$lot']\n  condition: sel or keywords",
+        "  sel: {cs-uri-query|contains: 'slot-gacor'}\n  keywords: ['5107', '$lot']\n  condition: sel and keywords",
+        ["weak_branch"],
+    ),
+    "number and match-all": (  # any successful sign-in with any location
+        "  selection: {ResultType: 0, Location: '*'}\n  condition: selection",
+        "  selection: {ResultType: 0, Location: 'KP'}\n  condition: selection",
+        ["weak_detection", "weak_high_severity"],
+    ),
+    "numbers and match-all contains": (
+        "  selection: {EventID: [4776, 4625], TargetUserName|contains: '*', Workstation: '*'}\n  condition: selection",
+        "  selection: {EventID: [4776, 4625], TargetUserName|contains: 'admin', Workstation: '*'}\n  condition: selection",
+        ["weak_detection", "weak_high_severity"],
     ),
 }
 
@@ -120,6 +150,44 @@ def test_specific_values(field: str, mods: list[str], value: str) -> None:
 )
 def test_weak_values(field: str, mods: list[str], value: str) -> None:
     assert value_is_weak(field, mods, value)
+
+
+@pytest.mark.parametrize(
+    "detection",
+    [
+        # SigmaHQ linux/syslog keyword rules: phrases, sometimes next to short tokens
+        "  keywords: ['Accepted publickey for root', 'su: ']\n  condition: keywords",
+        "  keywords: ['nc -e', 'ncat -e /bin/bash', 'socat exec:']\n  condition: keywords",
+        "  keywords: ['sekurlsa']\n  condition: keywords",
+        "  keywords: ['.git/']\n  condition: keywords",  # SigmaHQ web_source_code_enumeration
+        "  tools: ['scp ', 'rsync ', 'sftp ']\n  filter: ['@', ':']\n  condition: tools and filter",  # lnx_file_copy
+        # a short keyword ANDed with a specific field keeps the strength of the field
+        "  sel: {Image|endswith: '\\certutil.exe'}\n  keywords: ['-f']\n  condition: sel and keywords",
+        # numbers alone stay specific (event and status codes), and so does a number with a literal value
+        "  selection: {EventID: 4688}\n  condition: selection",
+        "  selection: {ResultType: 50126}\n  condition: selection",
+        "  selection: {EventID: 4768, TargetUserName|endswith: '$', CertThumbprint: '*'}\n  condition: selection",
+        # match-all next to text is not the number-only shape
+        "  selection: {eventSource: 'rds.amazonaws.com', masterUserPassword: '*'}\n  condition: selection",
+        # an empty user agent: `contains: ''` next to a length of 0 is the indicator, not a match-all
+        "  selection: {user_agent|contains: '', user_agent_length: 0}\n  condition: selection",
+        # a hex status code is not a plain number
+        "  selection: {Status: '0xc000006d', Workstation: '*'}\n  condition: selection",
+    ],
+)
+def test_specific_detections_are_not_flagged(detection: str) -> None:
+    assert strength_flags(_rule(detection)) == []
+
+
+def test_keyword_is_short_counts_literal_characters() -> None:
+    assert keyword_is_short("70931")
+    assert keyword_is_short("*$lot*")  # wildcards are not characters
+    assert not keyword_is_short("su: ")  # a space or path separator ties the token to a command or a path
+    assert not keyword_is_short(".git/")
+    assert not keyword_is_short("scp ")
+    assert not keyword_is_short("$u174n")
+    assert not keyword_is_short("pwned by")
+    assert not keyword_is_short(["a"])
 
 
 def test_unreadable_or_missing_conditions_are_not_flagged() -> None:

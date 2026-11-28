@@ -8,6 +8,13 @@ A value is weak when it says almost nothing about the event:
 Plain equality is never weak (`UserAgent: ''` is a real indicator), and neither are numbers, comparisons, field
 references or a file name after a path separator (`Image|endswith: /w`).
 A negated branch adds no strength: `selection and not filter` is as weak as `selection`.
+Two selection shapes are weak as a whole:
+- a keyword list (no field) whose keywords are all bare tokens of at most 5 literal characters (`5107`, `$lot`):
+  keywords are searched in the whole event, where short tokens occur by chance (ports, sizes, ids, timestamps);
+  a space or path separator (`scp `, `.git/`) or one longer phrase in the list keeps the strength, as in SigmaHQ's
+  linux/syslog keyword rules; a keyword containing another one of the list (`709311` next to `70931`) is ignored;
+- a selection of match-all fields (`Location: '*'`) and plain numbers only (`ResultType: 0`): the wildcard restricts
+  nothing and a lone status or event code is not specific.
 
 Flags (reviewable heuristics, the rule text is never changed):
 - weak_detection: every way to satisfy the condition uses only weak values (it matches almost any event of its log
@@ -32,6 +39,8 @@ STRENGTH_PENALTY = {"weak_detection": 15.0, "weak_branch": 5.0}
 _WILDCARD_MODS = {"contains", "startswith", "endswith"}
 _REGEX_META = re.compile(r"\\.|[.*+?^$()\[\]{}|]")
 _MAX_NODES = 4096  # untrusted rule text: bound the work per rule
+_SHORT_KEYWORD = 5  # literal characters; SigmaHQ keyword lists (linux/syslog) use phrases, rarely a lone short token
+_MAX_KEYWORDS = 512
 
 # (can be satisfied by weak values only, every satisfying path is weak)
 Strength = tuple[bool, bool]
@@ -39,7 +48,7 @@ _STRONG: Strength = (False, False)
 _WEAK: Strength = (True, True)
 
 
-def _literal(value: str) -> tuple[str, bool]:
+def _literal(value: str, strip: bool = True) -> tuple[str, bool]:
     """Literal text of a Sigma string value without unescaped wildcards, and whether it had one."""
     out: list[str] = []
     wild = False
@@ -55,7 +64,8 @@ def _literal(value: str) -> tuple[str, bool]:
         else:
             out.append(ch)
         i += 1
-    return "".join(out).strip(), wild
+    text = "".join(out)
+    return (text.strip() if strip else text), wild
 
 
 def value_is_weak(field: str, modifiers: list[str], value: Any) -> bool:
@@ -87,6 +97,39 @@ def value_is_weak(field: str, modifiers: list[str], value: Any) -> bool:
     return not lit or (len(lit) < 3 and lit.isascii())
 
 
+def keyword_is_short(value: Any) -> bool:
+    """True for a bare keyword (no field) of at most _SHORT_KEYWORD literal characters (`5107`, `$lot`, `*cq9*`).
+
+    A keyword is searched in the whole event text, so a short token also matches timestamps, ports, sizes, ids
+    and ordinary words. A space or a path separator ties the token to a command line or a path (`scp `, `.git/`,
+    `su: `), so such a keyword is not bare. Only a whole list of short keywords is weak (`_keywords_strength`).
+    """
+    return not isinstance(value, (dict, list)) and _short_literal(_keyword_literal(value))
+
+
+def _keyword_literal(value: Any) -> str:
+    """Lower-case literal text of a keyword (keywords match case-insensitively), spaces kept."""
+    return _literal("" if value is None else str(value), strip=False)[0].lower()
+
+
+def _short_literal(lit: str) -> bool:
+    return len(lit) <= _SHORT_KEYWORD and not any(ch.isspace() or ch in "/\\" for ch in lit)
+
+
+def _keywords_strength(values: list[Any]) -> Strength:
+    """A keyword list (OR): weak when every keyword is short, else weak only through a value_is_weak keyword.
+
+    A keyword that contains another keyword of the list adds nothing (`709311` next to `70931`: every event with
+    the longer one also has the shorter one), so only the keywords not containing another one are checked.
+    """
+    if values and len(values) <= _MAX_KEYWORDS:  # quadratic, bounded for untrusted rule text
+        lits = {_keyword_literal(v) for v in values}
+        minimal = [lit for lit in lits if not any(o != lit and o in lit for o in lits)]
+        if all(_short_literal(lit) for lit in minimal):
+            return _WEAK
+    return _or([_WEAK if value_is_weak("", [], v) else _STRONG for v in values])
+
+
 def _anchored_symbols(text: str, mods: set[str], lit: str) -> bool:
     """Two punctuation characters (not spaces, dashes-plus-space or path separators) anchored at the value start."""
     anchored = "startswith" in mods or not (mods & _WILDCARD_MODS or text.startswith(("*", "?")))
@@ -110,15 +153,37 @@ def _field_strength(key: str, values: Any) -> Strength:
     return _and(parts) if "all" in {m.lower() for m in mods} else _or(parts)
 
 
+def _field_kind(key: Any, values: Any) -> str:
+    """'any' for a match-all field (`Location: '*'`), 'number' for plain digits (`ResultType: 0`), else 'other'."""
+    field, *mods = str(key).split("|")
+    lowered = {m.lower() for m in mods}
+    items = values if isinstance(values, list) else [values]
+    if not field or not items or any(isinstance(v, (dict, list)) for v in items) or lowered - _WILDCARD_MODS:
+        return "other"
+    texts = ["" if v is None else str(v) for v in items]
+    if all(_literal(t) == ("", True) for t in texts):  # an explicit `*`; `contains: ''` stays 'other'
+        return "any"
+    if not lowered and all(t.isascii() and t.isdigit() for t in texts):
+        return "number"
+    return "other"
+
+
+def _number_and_any_only(sel: dict[Any, Any]) -> bool:
+    """`{ResultType: 0, Location: '*'}`: a match-all field adds no restriction and a lone number is not specific."""
+    return {_field_kind(k, v) for k, v in sel.items()} == {"any", "number"}
+
+
 def _selection_strength(sel: Any) -> Strength:
     if isinstance(sel, dict):
+        if _number_and_any_only(sel):
+            return _WEAK
         return _and([_field_strength(k, v) for k, v in sel.items()])
     if isinstance(sel, list):
         if all(isinstance(x, dict) for x in sel):
             return _or([_selection_strength(x) for x in sel])
-        return _or([_WEAK if value_is_weak("", [], x) else _STRONG for x in sel if not isinstance(x, (dict, list))])
+        return _keywords_strength([x for x in sel if not isinstance(x, (dict, list))])
     if isinstance(sel, str):
-        return _WEAK if value_is_weak("", [], sel) else _STRONG
+        return _keywords_strength([sel])
     return _STRONG
 
 
